@@ -14,6 +14,38 @@ import {
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
 
 const $ = id => document.getElementById(id);
+
+/* ---------- langue : celle choisie dans les réglages, sinon celle de l'appareil ; anglais par défaut ---------- */
+const LANGS = ["fr", "en", "de", "it", "es"];
+function langueChoisie() {
+  try { const l = localStorage.getItem("langue"); if (LANGS.includes(l)) return l; } catch (e) {}
+  for (const x of navigator.languages || [navigator.language]) { const c = String(x || "").slice(0, 2).toLowerCase(); if (LANGS.includes(c)) return c; }
+  return "en";
+}
+let LANGUE = langueChoisie(), DICO = {};
+if (LANGUE !== "fr") { try { DICO = await (await fetch(`/i18n/${LANGUE}.json`, { cache: "no-cache" })).json(); } catch (e) { LANGUE = "fr"; DICO = {}; } }
+window.__i18n = { lang: LANGUE, dico: DICO };
+document.documentElement.lang = LANGUE;
+const tr = s => (LANGUE !== "fr" && typeof s === "string" && Object.prototype.hasOwnProperty.call(DICO, s) ? DICO[s] : s);
+function tx(fr, v) {
+  let s = tr(fr);
+  if (s.includes("|")) { const f = s.split("|"), n = v && typeof v.n === "number" ? v.n : 1; s = f[new Intl.PluralRules(LANGUE).select(n) === "one" ? 0 : 1] ?? f[0]; }
+  return v ? s.replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? "" : String(v[k]))) : s;
+}
+function traduireDom(root) {
+  if (LANGUE === "fr") return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n; (n = w.nextNode());) { if (/^(SCRIPT|STYLE)$/.test(n.parentElement && n.parentElement.tagName)) continue; const x = n.nodeValue, k = x.trim().replace(/\s+/g, " "); if (k && DICO[k]) n.nodeValue = x.match(/^\s*/)[0] + DICO[k] + x.match(/\s*$/)[0]; }
+  root.querySelectorAll("[placeholder],[title],[aria-label],[alt]").forEach(el => { for (const a of ["placeholder", "title", "aria-label", "alt"]) if (el.hasAttribute(a)) el.setAttribute(a, tr(el.getAttribute(a))); });
+}
+traduireDom($("auth")); traduireDom($("boot"));
+async function changerLangue(l) {   // appelé depuis les réglages
+  if (!LANGS.includes(l)) return;
+  try { localStorage.setItem("langue", l); } catch (e) {}
+  try { if (uid) await setDoc(doc(fs, `${base()}/config/profil`), { langue: l }, { merge: true }); } catch (e) {}
+  location.reload();
+}
+window.changerLangue = changerLangue;
 const LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 const REGION = "europe-west1";
 
@@ -32,7 +64,7 @@ async function lireConfig() {
 const { cfg, reglages } = await lireConfig();
 const app = initializeApp(cfg);
 const auth = getAuth(app);
-auth.languageCode = "fr";
+auth.languageCode = LANGUE;
 const fs = initializeFirestore(app, LOCAL ? {} : { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const fns = getFunctions(app, REGION);
 if (LOCAL) {
@@ -76,7 +108,7 @@ const user = {
   me: async () => {
     const u = auth.currentUser; if (!u) return null;
     const p = u.providerData.map(x => x.providerId);
-    return { name: u.displayName || "", email: u.email || "", via: p.map(x => VIA[x]).filter(Boolean).join(", ") };
+    return { name: u.displayName || "", email: u.email || "", via: p.map(x => VIA[x]).filter(Boolean).map(tr).join(", ") };
   },
   can: async () => true,
 };
@@ -108,7 +140,9 @@ const sample = {
     const images = await Promise.all(brut.slice(0, 4).map(b => enJpeg(b)));
     const arret = new Promise((_, ko) => o.signal && o.signal.addEventListener("abort", () => { const x = new Error("Arrêté"); x.code = "cancelled"; ko(x); }, { once: true }));
     let r;
-    try { r = await Promise.race([appelClaude({ prompt: String(prompt), images }), arret]); }
+    const NOMS = { en: "anglais", de: "allemand", it: "italien", es: "espagnol" };
+    const consigne = LANGUE !== "fr" ? `\n\nIMPORTANT : rédige tous les textes libres destinés à l'utilisateur (goût, service, apogée, plats, recettes, conseils, raisons, remarques, descriptions) en ${NOMS[LANGUE]}. Ne traduis pas les valeurs imposées par le format demandé (identifiants, couleurs comme « rouge » ou « blanc », types, mots-clés), ni les noms propres de vins, domaines, appellations et régions.` : "";
+    try { r = await Promise.race([appelClaude({ prompt: String(prompt) + consigne, images }), arret]); }
     catch (e) { if (e.code === "cancelled") throw e; const x = new Error(e.message); x.code = CODES_CLAUDE[e.code] || "upstream_error"; throw x; }
     return lireJson(r && r.data && r.data.text);
   },
@@ -133,12 +167,12 @@ const MSG = {
   "auth/operation-not-allowed": "Ce mode de connexion n'est pas encore activé.",
   "auth/unauthorized-domain": "Ce site n'est pas autorisé pour la connexion : ajoutez son domaine dans Firebase, Authentication, Paramètres.",
 };
-const montrer = (id, t) => { const el = $(id); el.textContent = t || ""; el.hidden = !t; };
-const erreur = e => { const m = e && MSG[e.code]; if (m === "") return; montrer("aInfo", ""); montrer("aErr", m || "La connexion a échoué. Réessayez."); console.warn(e); };
+const montrer = (id, x) => { const el = $(id); el.textContent = tr(x || ""); el.hidden = !x; };
+const erreur = e => { const m = e && MSG[e.code]; if (m === "") return; montrer("aInfo", ""); montrer("aErr", tr(m) || tr("La connexion a échoué. Réessayez.")); console.warn(e); };
 function modeCreation(on) {
   creation = on;
-  $("aOk").textContent = on ? "Créer mon compte" : "Se connecter";
-  $("aMode").textContent = on ? "J'ai déjà un compte" : "Créer un compte";
+  $("aOk").textContent = tr(on ? "Créer mon compte" : "Se connecter");
+  $("aMode").textContent = tr(on ? "J'ai déjà un compte" : "Créer un compte");
   $("aMdp2L").hidden = !on; $("aAide").hidden = !on; $("aOubli").hidden = on;
   $("aMdp").autocomplete = on ? "new-password" : "current-password";
   montrer("aErr", ""); montrer("aInfo", "");
@@ -163,7 +197,7 @@ function brancherConnexion() {
   $("aOubli").addEventListener("click", async () => {
     const mail = $("aMail").value.trim();
     if (!mail) { montrer("aErr", "Saisissez d'abord votre adresse e-mail, puis touchez « Mot de passe oublié »."); $("aMail").focus(); return; }
-    try { await sendPasswordResetEmail(auth, mail); montrer("aErr", ""); montrer("aInfo", `Si un compte existe pour ${mail}, un e-mail vient d'y être envoyé pour choisir un nouveau mot de passe.`); }
+    try { await sendPasswordResetEmail(auth, mail); montrer("aErr", ""); montrer("aInfo", tx("Si un compte existe pour {mail}, un e-mail vient d'y être envoyé pour choisir un nouveau mot de passe.", { mail })); }
     catch (e) { erreur(e); }
   });
   $("aForm").addEventListener("submit", async e => {
@@ -185,27 +219,27 @@ function brancherConnexion() {
 /* ---------- compte et sauvegarde, dans les réglages ---------- */
 const fnSuppr = httpsCallable(fns, "supprimerCompte", { timeout: 120000 });
 function brancherReglages() {
-  const msg = t => { const el = $("cptMsg"); el.textContent = t; el.hidden = !t; };
+  const msg = x => { const el = $("cptMsg"); el.textContent = tr(x); el.hidden = !x; };
   const u = auth.currentUser;
   $("cptMdp").hidden = !u.providerData.some(p => p.providerId === "password");
   $("cptMdp").addEventListener("click", async () => {
-    try { await sendPasswordResetEmail(auth, auth.currentUser.email); msg(`Un e-mail vient d'être envoyé à ${auth.currentUser.email} pour choisir un nouveau mot de passe.`); }
+    try { await sendPasswordResetEmail(auth, auth.currentUser.email); msg(tx("Un e-mail vient d'être envoyé à {mail} pour choisir un nouveau mot de passe.", { mail: auth.currentUser.email })); }
     catch (e) { msg("L'envoi a échoué. Réessayez dans un moment."); }
   });
   $("cptOut").addEventListener("click", async () => { await signOut(auth); location.reload(); });
   let arme = false;
   $("cptDel").addEventListener("click", async e => {
     const b = e.currentTarget;
-    if (!arme) { arme = true; b.textContent = "Confirmer : tout supprimer définitivement"; msg("Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer."); return; }
+    if (!arme) { arme = true; b.textContent = tr("Confirmer : tout supprimer définitivement"); msg("Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer."); return; }
     b.disabled = true; msg("Suppression en cours…");
     try { await fnSuppr({}); await signOut(auth).catch(() => {}); location.reload(); }
-    catch (er) { b.disabled = false; arme = false; b.textContent = "Supprimer mon compte et mes données…"; msg("La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste."); }
+    catch (er) { b.disabled = false; arme = false; b.textContent = tr("Supprimer mon compte et mes données…"); msg("La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste."); }
   });
   $("bkExp").addEventListener("click", exporter);
   $("bkImp").addEventListener("click", () => $("bkFile").click());
   $("bkFile").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) importer(f); });
 }
-const bk = t => { const el = $("bkMsg"); el.textContent = t; el.hidden = !t; };
+const bk = x => { const el = $("bkMsg"); el.textContent = tr(x); el.hidden = !x; };
 async function exporter() {
   bk("Préparation du fichier…");
   try {
@@ -217,7 +251,7 @@ async function exporter() {
     const n = Object.keys(docs).length, blob = new Blob([JSON.stringify({ format: "cave-a-vin", version: 1, exporteLe: new Date().toISOString(), docs })], { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `sauvegarde-cave-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-    bk(`Fichier prêt : ${n} éléments. Gardez-le en lieu sûr.`);
+    bk(tx("Fichier prêt : {n} éléments. Gardez-le en lieu sûr.", { n }));
   } catch (e) { bk("L'export a échoué. Vérifiez votre connexion et réessayez."); console.warn(e); }
 }
 const CHEMIN = /^(config\/(cave|caves)|caves\/[a-z0-9]+|(caves\/[a-z0-9]+\/)?(vins|sorties|photos)\/[A-Za-z0-9_-]{1,64})$/;
@@ -228,7 +262,7 @@ async function importer(file) {
   const items = Object.entries(j.docs).filter(([p, d]) => CHEMIN.test(p) && d && typeof d === "object" && !Array.isArray(d));
   if (!items.length) return bk("Cette sauvegarde est vide.");
   const nv = items.filter(([p]) => /(^|\/)vins\//.test(p)).length;
-  if (!confirm(`Importer cette sauvegarde (${nv} vin${nv > 1 ? "s" : ""}, ${items.length} éléments en tout) ?\nLes éléments déjà présents avec le même identifiant seront remplacés ; les autres sont conservés.`)) return;
+  if (!confirm(tx("Importer cette sauvegarde ({n} vin, {total} éléments en tout) ?|Importer cette sauvegarde ({n} vins, {total} éléments en tout) ?", { n: nv, total: items.length }) + "\n" + tr("Les éléments déjà présents avec le même identifiant seront remplacés ; les autres sont conservés."))) return;
   let fait = 0;
   try {
     // par lots : 400 écritures et 8 Mo au plus par lot, les photos pesant jusqu'à 250 ko
@@ -239,10 +273,10 @@ async function importer(file) {
         if (n && taille + t > 8e6) break;
         b.set(doc(fs, `${base()}/${p}`), d); n++; taille += t; i++;
       }
-      await b.commit(); fait += n; bk(`Import en cours : ${fait} sur ${items.length}…`);
+      await b.commit(); fait += n; bk(tx("Import en cours : {fait} sur {total}…", { fait, total: items.length }));
     }
-    bk(`Import terminé : ${fait} éléments, dont ${nv} vin${nv > 1 ? "s" : ""}.`);
-  } catch (e) { bk(`L'import s'est arrêté après ${fait} éléments. Relancez-le : les éléments déjà importés seront simplement remplacés.`); console.warn(e); }
+    bk(tx("Import terminé : {fait} éléments, dont {n} vin.|Import terminé : {fait} éléments, dont {n} vins.", { fait, n: nv }));
+  } catch (e) { bk(tx("L'import s'est arrêté après {fait} éléments. Relancez-le : les éléments déjà importés seront simplement remplacés.", { fait })); console.warn(e); }
 }
 
 /* ---------- abonnement : 50 bouteilles gratuites, puis une formule annuelle (Stripe) ---------- */
@@ -286,6 +320,7 @@ onAuthStateChanged(auth, u => {
   if (demarre) return;
   demarre = true;
   brancherReglages();
+  getDoc(doc(fs, `${base()}/config/profil`)).then(s => { const l = s.exists() && s.data().langue; if (LANGS.includes(l) && l !== LANGUE) { try { localStorage.setItem("langue", l); } catch (e) {} location.reload(); } }).catch(() => {});
   window.compte = compte;
   window.claude = { use: async n => (n === "db" ? db : n === "user" ? user : n === "sample" ? sample : null) };
   window.__pretOk();

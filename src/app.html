@@ -492,6 +492,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
     <div class="casier">
       <h2>Compte et sécurité</h2>
       <p id="p-compte">Connexion en cours de vérification…</p>
+      <label class="lab" id="langLab" hidden style="max-width:18rem">Langue<select id="langSel"></select></label>
       <div class="row">
         <button class="btn" id="cptMdp" hidden>Changer le mot de passe</button>
         <button class="btn" id="cptOut">Se déconnecter</button>
@@ -639,6 +640,7 @@ const AN = new Date().getFullYear();
 const DEFAUT = [{ id: "a", nom: "Casier A", rangs: 6, colonnes: 6 }];
 const TYPES = { cases: "Casier à cases (1 bouteille par case)", etagere: "Étagère murale (bouteilles couchées, 1 par place)", croisillon: "Croisillon (box de 12 compartiments)", croix4: "Croisillon simple (box en X, 4 compartiments)", tiroir: "Tiroirs ou caisses (plusieurs bouteilles chacun)" };
 const MOT = { cases: "case", etagere: "place", croisillon: "compartiment", croix4: "compartiment", tiroir: "tiroir" };
+const MOTS = { cases: "{n} case|{n} cases", etagere: "{n} place|{n} places", croisillon: "{n} compartiment|{n} compartiments", croix4: "{n} compartiment|{n} compartiments", tiroir: "{n} tiroir|{n} tiroirs" };
 const ZONES = { fond: "Mur du fond", gauche: "Mur gauche", droite: "Mur droit", sol: "Au sol" };
 const POS = { gauche: "à gauche", centre: "au centre", droite: "à droite" };
 const zone = k => (k.zone === "autre" ? "sol" : ZONES[k.zone] ? k.zone : "fond");
@@ -656,7 +658,7 @@ function sv(tag, attrs, ...kids) {
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v);
   }
-  for (const kid of kids.flat()) if (kid) el.append(kid);
+  for (const kid of kids.flat()) if (kid) el.append(typeof kid === "string" ? tr(kid) : kid);
   return el;
 }
 /* Un box en croisillon : carré de 400, deux diagonales et un grand losange. 12 compartiments, numérotés de haut en bas. */
@@ -674,7 +676,38 @@ const X4 = (() => {
 })();
 const COMP = [HAUT(100), HAUT(300), COTE(0, 1, 100), LOS(200, 100), COTE(400, -1, 100), LOS(100, 200), LOS(300, 200), COTE(0, 1, 300), LOS(200, 300), COTE(400, -1, 300), BAS(100), BAS(300)];
 const $ = id => document.getElementById(id);
-const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+/* ---------- langues : les textes sont écrits en français ; DICO donne leur traduction (texte français -> texte traduit) ---------- */
+const LANGUES = { fr: "Français", en: "English", de: "Deutsch", it: "Italiano", es: "Español" };
+let LANG = "fr", DICO = {};
+const LOCALE = () => ({ fr: "fr-FR", en: "en-GB", de: "de-DE", it: "it-IT", es: "es-ES" })[LANG] || "fr-FR";
+const tr = s => (LANG !== "fr" && typeof s === "string" && Object.prototype.hasOwnProperty.call(DICO, s) ? DICO[s] : s);   // texte fixe
+function tx(fr, v) {   // texte avec variables {nom} ; « singulier|pluriel » choisi d'après v.n
+  let s = tr(fr);
+  if (s.includes("|")) { const f = s.split("|"), n = v && typeof v.n === "number" ? v.n : 1; s = f[new Intl.PluralRules(LANG).select(n) === "one" ? 0 : 1] ?? f[0]; }
+  return v ? s.replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? "" : String(v[k]))) : s;
+}
+let eur = new Intl.NumberFormat(LOCALE(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+function traduireDom(root) {   // textes et attributs fixes du HTML
+  if (LANG === "fr") return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && /^(SCRIPT|STYLE)$/.test(n.parentElement.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  for (let n; (n = w.nextNode());) { const x = n.nodeValue, k = x.trim().replace(/\s+/g, " "); if (k && DICO[k]) n.nodeValue = x.match(/^\s*/)[0] + DICO[k] + x.match(/\s*$/)[0]; }
+  root.querySelectorAll("[placeholder],[title],[aria-label],[alt]").forEach(el => { for (const a of ["placeholder", "title", "aria-label", "alt"]) if (el.hasAttribute(a)) el.setAttribute(a, tr(el.getAttribute(a))); });
+}
+function traduireTables() {   // les libellés rangés dans des tables
+  for (const TB of [COULEURS, TYPES, MOT, ZONES, POS, VA, SORTIES, LIB, CONT, SCAN_ERR, HINT, COURT, PAYS, AMATEUR]) for (const k in TB) TB[k] = tr(TB[k]);
+  for (const M of Object.values(MODELES)) { M.nom = tr(M.nom); M.desc = tr(M.desc); M.f.forEach(f => { f[1] = tr(f[1]); }); }
+}
+function appliquerLangue(L) {
+  if (!L || !LANGUES[L.lang] || L.lang === "fr") return;
+  LANG = L.lang; DICO = L.dico || {}; DEFAUT[0].nom = tr(DEFAUT[0].nom);
+  // les textes posés directement dans le DOM (append, replaceChildren, textContent…) passent aussi par le dictionnaire
+  for (const m of ["append", "prepend", "replaceChildren", "before", "after"]) { const o = Element.prototype[m]; Element.prototype[m] = function (...a) { return o.apply(this, a.map(x => (typeof x === "string" ? tr(x) : x))); }; }
+  const tc = Object.getOwnPropertyDescriptor(Node.prototype, "textContent");
+  Object.defineProperty(Node.prototype, "textContent", { configurable: true, enumerable: tc.enumerable, get: tc.get, set(v) { tc.set.call(this, typeof v === "string" ? tr(v) : v); } });
+  document.documentElement.lang = LANG;
+  eur = new Intl.NumberFormat(LOCALE(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  traduireTables(); traduireDom(document.body);
+}
 
 function h(tag, props, ...kids) {
   const el = document.createElement(tag);
@@ -683,9 +716,9 @@ function h(tag, props, ...kids) {
     if (k === "class") el.className = v;
     else if (k === "c") { if (String(v)[0] === "#") { el.style.setProperty("--c", v); el.style.setProperty("--ci", "#fff"); continue; } const w = COULEURS[v] ? v : "rouge"; el.style.setProperty("--c", `var(--w-${w})`); el.style.setProperty("--ci", `var(--wi-${w})`); }
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
-    else el.setAttribute(k, v === true ? "" : v);
+    else el.setAttribute(k, v === true ? "" : (k === "placeholder" || k === "title" || k === "aria-label" || k === "alt") ? tr(v) : v);
   }
-  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid);
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(typeof kid === "string" ? tr(kid) : kid);
   return el;
 }
 
@@ -744,7 +777,7 @@ function pile(k, L, mini, etat) {   // le contenu d'une case vu de face, empilé
 const capDe = key => { const k = casiers().find(x => x.id === String(key).split(".")[0]); return k ? capAt(k, String(key).split(".")[2]) : 0; };
 const kOf = key => casiers().find(x => x.id === String(key).split(".")[0]);
 function slotExists(key) { const [, r, c] = key.split("."); const k = kOf(key); return !!k && +r < k.rangs && +c < k.colonnes; }
-function slotLabel(key) { const [, r, c] = key.split("."); const k = kOf(key); if (!k) return "Non rangée"; return k.rangs > 1 ? `${k.nom}, ${croix(k) ? "box" : "rangée"} ${+r + 1}, ${MOT[typ(k)]} ${+c + 1}` : `${k.nom}, ${MOT[typ(k)]} ${+c + 1}`; }
+function slotLabel(key) { const [, r, c] = key.split("."); const k = kOf(key); if (!k) return tr("Non rangée"); return k.rangs > 1 ? `${k.nom}, ${tr(croix(k) ? "box" : "rangée")} ${+r + 1}, ${tr(MOT[typ(k)])} ${+c + 1}` : `${k.nom}, ${tr(MOT[typ(k)])} ${+c + 1}`; }
 function slotShort(key) { const [, r, c] = key.split("."); const k = kOf(key); return `${k ? k.nom : "?"} ${+r + 1}-${+c + 1}`; }
 function occup() { const m = {}; for (const v of vins) for (const p of places(v)) (m[p] = m[p] || []).push(v); return m; }
 const sans = (p, slot) => { const i = p.indexOf(slot); return i < 0 ? p : [...p.slice(0, i), ...p.slice(i + 1)]; };
@@ -754,7 +787,7 @@ const qte = v => places(v).length + num(v.vrac);
 const hors = v => qte(v) - rangees(v).length;
 const enVente = v => Math.min(qte(v), Math.max(0, Math.floor(num(v.venteN))));   // bouteilles proposées à la vente
 const prixVente = v => num(v.ventePrix) || num(v.prixActuel) || num(v.prix);
-const pilVente = v => h("span", { class: "pill vente" }, `À vendre : ${enVente(v)}${prixVente(v) ? " × " + eur.format(prixVente(v)) : ""}`);
+const pilVente = v => h("span", { class: "pill vente" }, tx("À vendre : {n}", { n: enVente(v) }) + (prixVente(v) ? " × " + eur.format(prixVente(v)) : ""));
 function statut(v) {
   const de = num(v.boireDe), a = num(v.boireA);
   if (!de && !a) return null;
@@ -767,7 +800,7 @@ const court = n => (n >= 1000 ? (n / 1000).toFixed(1).replace(".", ",").replace(
 const MOIS = 30 * 864e5;
 const aActualiser = () => vins.filter(v => qte(v) > 0 && (!num(v.prixMaj) || Date.now() - v.prixMaj > MOIS));
 const urgent = v => qte(v) > 0 && num(v.boireA) > 0 && num(v.boireA) <= AN + 1;   // fin de fenêtre cette année ou l'an prochain, ou déjà dépassée
-const pilule = (v, s) => h("span", { class: "pill " + (urgent(v) ? "tard" : s) }, urgent(v) && s === "boire" ? `À boire vite, avant fin ${v.boireA}` : LIB[s]);
+const pilule = (v, s) => h("span", { class: "pill " + (urgent(v) ? "tard" : s) }, urgent(v) && s === "boire" ? tx("À boire vite, avant fin {an}", { an: v.boireA }) : LIB[s]);
 function montrer(dlg) {   // ouvre une fenêtre sans donner le focus à un menu déroulant : sur iPhone, le focus suffit à le dérouler
   dlg.showModal();
   const t = dlg.querySelector("h2"); if (t) { t.tabIndex = -1; t.style.outline = "none"; t.focus({ preventScroll: true }); }
@@ -782,10 +815,10 @@ const ajoutsDe = v => (Array.isArray(v.ajouts) ? v.ajouts.filter(x => x && typeo
 const plusAjout = (v, n) => [...ajoutsDe(v), { le: Date.now(), n }].slice(-200);   // entrées de bouteilles (n négatif : correction à la baisse)
 const selNombre = (id, defaut) => { const sl = h("select", { id }, Array.from({ length: 48 }, (_, i) => h("option", { value: String(i + 1) }, String(i + 1)))); sl.value = String(Math.max(1, Math.min(48, defaut || 1))); return sl; };
 const LIB = { boire: "À boire", garder: "À garder", tard: "Apogée passée" };
-const titre = v => `${v.nom || "Sans nom"}${v.millesime ? " " + v.millesime : ""}`;
+const titre = v => `${v.nom || tr("Sans nom")}${v.millesime ? " " + v.millesime : ""}`;
 
 let toastT;
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
+function toast(msg) { const t = $("toast"); t.textContent = tr(msg); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
 function fail(e) {
   const c = e && e.code;
   if (c === "quota_exceeded") toast("L'espace de stockage de la cave est plein. Supprimez des vins terminés.");
@@ -955,15 +988,15 @@ function render() {
   const total = casiers().reduce((s, k) => s + placesDe(k), 0);
   const occ = vins.reduce((s, v) => s + rangees(v).length, 0);
 
-  $("sub").textContent = !loaded ? "Ouverture de la cave…" : nb ? `${nb} bouteille${nb > 1 ? "s" : ""} en cave, ${enCave.length} vin${enCave.length > 1 ? "s" : ""} différent${enCave.length > 1 ? "s" : ""}.` : "La cave est vide pour l'instant.";
+  $("sub").textContent = tr(!loaded ? "Ouverture de la cave…" : nb ? tx("{n} bouteille en cave|{n} bouteilles en cave", { n: nb }) + ", " + tx("{n} vin différent.|{n} vins différents.", { n: enCave.length }) : "La cave est vide pour l'instant.");
   $("add").hidden = !loaded || !canWrite;
-  $("titre").textContent = (config && typeof config.nom === "string" && config.nom.trim()) || nomCave(caves.find(c => c.id === cave));
+  $("titre").textContent = tr((config && typeof config.nom === "string" && config.nom.trim()) || nomCave(caves.find(c => c.id === cave)));
   const cs = $("caveSel"); $("csw").hidden = caves.length < 2;
   if (caves.length > 1 && document.activeElement !== cs) { cs.replaceChildren(...caves.map(c => h("option", { value: c.id }, c.id === cave ? $("titre").textContent : nomCave(c)))); cs.value = cave; }
   if (tab === "param") {
     $("p-cavesCard").hidden = !db;
     $("p-caves").replaceChildren(...[...caves.map(c => h("div", { class: "krow" },
-      h("div", null, h("b", null, c.id === cave ? $("titre").textContent : nomCave(c)), h("span", { class: "meta" }, c.id === cave ? `Ouverte en ce moment · ${vins.length} vin${vins.length > 1 ? "s" : ""}` : "Touchez « Ouvrir » pour y aller")),
+      h("div", null, h("b", null, c.id === cave ? $("titre").textContent : nomCave(c)), h("span", { class: "meta" }, c.id === cave ? tx("Ouverte en ce moment · {n} vin|Ouverte en ce moment · {n} vins", { n: vins.length }) : "Touchez « Ouvrir » pour y aller")),
       c.id === cave ? null : h("button", { type: "button", class: "btn small", onclick: () => { tab = "plan"; ouvrirCave(c.id); scrollTo(0, 0); } }, "Ouvrir"))),
       ].filter(Boolean));
     for (const id of ["p-newCave", "p-newCaveOk"]) $(id).disabled = !canWrite;
@@ -972,13 +1005,13 @@ function render() {
   $("tabParam").setAttribute("aria-pressed", String(tab === "param"));
   if (tab === "param") {
     const ks = casiers(), pl = ks.reduce((a, k) => a + placesDe(k), 0);
-    $("p-resume").textContent = `« ${$("titre").textContent} » : ${ks.length} rangement${ks.length > 1 ? "s" : ""}, ${pl} places en tout.`;
+    $("p-resume").textContent = tx("« {nom} » : ", { nom: $("titre").textContent }) + tx("{n} rangement|{n} rangements", { n: ks.length }) + ", " + tx("{n} places en tout.", { n: pl });
     for (const id of ["cfgBtn", "mRang", "reorgBtn"]) $(id).disabled = !loaded || !canWrite;
     const mp = config && config.majPrix && typeof config.majPrix === "object" ? config.majPrix : null;
     $("valBtn").disabled = !loaded || !canWrite || !sample || prixBusy || !vins.some(v => qte(v) > 0);
-    $("p-val").replaceChildren(...(mp && num(mp.le) ? [`Dernière mise à jour des valeurs le ${new Date(mp.le).toLocaleDateString("fr-FR")} : ${Array.isArray(mp.lignes) && mp.lignes.length ? `${mp.lignes.length} prix modifié${mp.lignes.length > 1 ? "s" : ""}` : "aucun prix modifié"}. `, h("button", { class: "link", onclick: () => rapportPrix(mp) }, "Revoir le détail")] : [sample ? "Les valeurs sont estimées par l'application d'après sa connaissance du marché : une indication, pas une cote officielle." : "La mise à jour des valeurs n'est pas disponible ici."]));
+    $("p-val").replaceChildren(...(mp && num(mp.le) ? [tx("Dernière mise à jour des valeurs le {date} : {detail}. ", { date: new Date(mp.le).toLocaleDateString(LOCALE()), detail: Array.isArray(mp.lignes) && mp.lignes.length ? tx("{n} prix modifié|{n} prix modifiés", { n: mp.lignes.length }) : tr("aucun prix modifié") }), h("button", { class: "link", onclick: () => rapportPrix(mp) }, "Revoir le détail")] : [sample ? "Les valeurs sont estimées par l'application d'après sa connaissance du marché : une indication, pas une cote officielle." : "La mise à jour des valeurs n'est pas disponible ici."]));
     const VV = vins.filter(enVente), nbV = VV.reduce((a, v) => a + enVente(v), 0), totV = VV.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
-    $("p-vente").textContent = nbV ? `${nbV} bouteille${nbV > 1 ? "s" : ""} proposée${nbV > 1 ? "s" : ""} à la vente, sur ${VV.length} vin${VV.length > 1 ? "s" : ""}${totV ? `, pour ${eur.format(totV)} demandés` : ""}.` : "Aucune bouteille n'est proposée à la vente pour l'instant.";
+    $("p-vente").textContent = tr(nbV ? tx("{n} bouteille proposée à la vente|{n} bouteilles proposées à la vente", { n: nbV }) + ", " + tx("sur {n} vin|sur {n} vins", { n: VV.length }) + (totV ? tx(", pour {somme} demandés", { somme: eur.format(totV) }) : "") + "." : "Aucune bouteille n'est proposée à la vente pour l'instant.");
     $("catBtn").disabled = $("venteInv").disabled = !nbV;
     majAbonnement().catch(() => {}); majProfil().catch(() => {});
   }
@@ -988,21 +1021,21 @@ function render() {
   const tuile = (vue, lab, n, cls, versInv, dit) => {
     const on = $("vue").value === vue, d = stat(lab, [String(n), h("small", null, on ? "tout réafficher" : "les montrer")]);
     d.className = "clic" + (n ? " " + cls : ""); d.dataset.v = vue; d.setAttribute("role", "button"); d.tabIndex = 0; d.setAttribute("aria-pressed", String(on));
-    d.setAttribute("aria-label", `${dit} : ${n}. ${on ? "Réafficher toute la cave" : "Ne montrer que celles-ci"}`);
+    d.setAttribute("aria-label", `${tr(dit)} : ${n}. ${tr(on ? "Réafficher toute la cave" : "Ne montrer que celles-ci")}`);
     const go = () => { $("vue").value = on ? "cave" : vue; focusVin = null; if (!on && versInv || tab === "suivi") tab = "inv"; render(); const x = document.querySelector(`#stats .clic[data-v="${vue}"]`); if (x) x.focus({ preventScroll: true }); if (!on && versInv) $("inv").scrollIntoView({ block: "nearest", behavior: "auto" }); };
     d.addEventListener("click", go); d.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
     return d;
   };
-  const sVal = stat("Valeur", valeur ? (valeur >= 10000 ? new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(valeur) + " €" : eur.format(valeur)) : "—"); sVal.className = "val";
+  const sVal = stat("Valeur", valeur ? (valeur >= 10000 ? new Intl.NumberFormat(LOCALE(), { notation: "compact", maximumFractionDigits: 1 }).format(valeur) + " €" : eur.format(valeur)) : "—"); sVal.className = "val";
   $("stats").replaceChildren(stat("Bouteilles", String(nb)), tuile("ranger", "À ranger", aRanger, "warn", true, "Bouteilles à ranger"), tuile("boire", "À boire", aBoire, "ok", false, "À boire maintenant"),
-    stat("Vins", String(enCave.length)), stat("Places", [String(Math.max(0, total - occ)), h("small", null, `libres sur ${total}`)]), sVal);
+    stat("Vins", String(enCave.length)), stat("Places", [String(Math.max(0, total - occ)), h("small", null, tx("libres sur {n}", { n: total }))]), sVal);
 
   $("tabPlan").setAttribute("aria-pressed", String(tab === "plan"));
   $("tabInv").setAttribute("aria-pressed", String(tab === "inv"));
   $("tabSuivi").setAttribute("aria-pressed", String(tab === "suivi"));
   $("plan").hidden = tab !== "plan"; $("inv").hidden = tab !== "inv"; $("suivi").hidden = tab !== "suivi"; $("classer").hidden = tab !== "inv";
   const fb = $("filtBtn"); fb.hidden = tab === "suivi"; $("tools").hidden = !filtres || tab === "suivi" || tab === "param";
-  fb.setAttribute("aria-expanded", String(filtres)); fb.textContent = filtres ? "Masquer" : filtreActif() ? "Filtres (actifs)" : "Filtres";
+  fb.setAttribute("aria-expanded", String(filtres)); fb.textContent = tr(filtres ? "Masquer" : filtreActif() ? "Filtres (actifs)" : "Filtres");
 
   $("chips").replaceChildren(
     h("button", { class: "chip", "aria-pressed": String(filtreCouleur === ""), onclick: () => { filtreCouleur = ""; focusVin = null; render(); } }, "Toutes"),
@@ -1011,22 +1044,22 @@ function render() {
   // avis
   const ex = vins.filter(v => v.exemple);
   const n = $("notice"); n.hidden = true; n.replaceChildren();
-  if (loaded && !db) { n.hidden = false; n.append("Mode démonstration : connectez-vous pour que vos changements soient enregistrés."); }
-  else if (loaded && !canWrite) { n.hidden = false; n.append("Lecture seule : vous pouvez consulter cette cave, pas la modifier."); }
+  if (loaded && !db) { n.hidden = false; n.append(tr("Mode démonstration : connectez-vous pour que vos changements soient enregistrés.")); }
+  else if (loaded && !canWrite) { n.hidden = false; n.append(tr("Lecture seule : vous pouvez consulter cette cave, pas la modifier.")); }
   else if (loaded && db && canWrite && !(config && Array.isArray(config.casiers) && config.casiers.length) && !vins.length) {
     n.hidden = false;
     n.append(h("span", null, "Cette cave n'est pas encore décrite. Quelques questions suffisent pour dessiner ses rangements."), h("button", { class: "btn small primary", onclick: () => assistant({ nom: (caves.find(c => c.id === cave) || {}).nom || "", existante: true }) }, "Décrire ma cave"));
   }
   else if (ex.length) {
     n.hidden = false;
-    n.append(h("span", null, `${ex.length} vin${ex.length > 1 ? "s" : ""} d'exemple pour montrer l'appli. Ce ne sont pas vos bouteilles.`),
+    n.append(h("span", null, tx("{n} vin d'exemple pour montrer l'appli. Ce ne sont pas vos bouteilles.|{n} vins d'exemple pour montrer l'appli. Ce ne sont pas vos bouteilles.", { n: ex.length })),
       h("button", { class: "btn small", onclick: async e => { e.target.disabled = true; try { for (const v of ex) await deleteVin(v.id); toast("Exemples supprimés."); } catch (er) { fail(er); } } }, "Supprimer les exemples"));
   }
   const pb = $("prixBar"), todo = loaded && canWrite && sample ? aActualiser().length : 0; pb.hidden = !todo && !prixBusy; pb.replaceChildren();
-  if (prixBusy) pb.append("Estimation des prix en cours…");
-  else if (todo) pb.append(h("span", null, `${todo} vin${todo > 1 ? "s" : ""} sans prix actuel de moins d'un mois.`), h("button", { class: "btn small", onclick: actualiserPrix }, "Estimer les prix"));
+  if (prixBusy) pb.append(tr("Estimation des prix en cours…"));
+  else if (todo) pb.append(h("span", null, tx("{n} vin sans prix actuel de moins d'un mois.|{n} vins sans prix actuel de moins d'un mois.", { n: todo })), h("button", { class: "btn small", onclick: actualiserPrix }, "Estimer les prix"));
   const mb = $("moveBar"); mb.hidden = !move; mb.replaceChildren();
-  if (move) { const mv = vins.find(v => v.id === move.id); mb.append(h("span", null, move.slot ? `Choisissez un rangement, puis touchez une place libre pour y déplacer « ${mv ? titre(mv) : ""} » (depuis ${slotShort(move.slot)}).` : `Choisissez un rangement, puis touchez une place libre pour y ranger « ${mv ? titre(mv) : ""} »${mv && hors(mv) > 1 ? ` (${hors(mv)} à ranger)` : ""}.`), h("button", { class: "btn small", onclick: () => { move = null; render(); } }, "Annuler")); }
+  if (move) { const mv = vins.find(v => v.id === move.id); mb.append(h("span", null, move.slot ? tx("Choisissez un rangement, puis touchez une place libre pour y déplacer « {vin} » (depuis {lieu}).", { vin: mv ? titre(mv) : "", lieu: slotShort(move.slot) }) : tx("Choisissez un rangement, puis touchez une place libre pour y ranger « {vin} »", { vin: mv ? titre(mv) : "" }) + (mv && hors(mv) > 1 ? tx(" ({n} à ranger)", { n: hors(mv) }) : "") + "."), h("button", { class: "btn small", onclick: () => { move = null; render(); } }, "Annuler")); }
 
   renderPlan(); renderInv(); renderSuivi();
 }
@@ -1037,20 +1070,20 @@ function dessin(k, occ, mini) {   // le rangement dessiné ; mini = vignette non
   const t = typ(k), cp = cap(k), m = multi(k), tag = mini ? "span" : "button";
   let libres = 0, hit = false, valeur = 0; const somme = L => L.reduce((a, v) => a + prixDe(v), 0); const vu = (L, c = cp) => { libres += Math.max(0, c - L.length); valeur += somme(L); if (focusVin && L.some(v => v.id === focusVin)) hit = true; };
   let el;
-  const tr = treillis(k);
-  if (tr) {
+  const trl = treillis(k);
+  if (trl) {
     el = h("div", { class: "xrow" }, Array.from({ length: k.rangs }, (_, b) => {
-      const g = [sv("rect", { class: "fr", x: 0, y: 0, width: 400, height: 400 }), sv("path", { class: "fr", d: tr.d })];
-      tr.comps.forEach((co, i) => {
+      const g = [sv("rect", { class: "fr", x: 0, y: 0, width: 400, height: 400 }), sv("path", { class: "fr", d: trl.d })];
+      trl.comps.forEach((co, i) => {
         const key = `${k.id}.${b}.${i}`, L = occ[key] || [], cpi = capAt(k, i); vu(L, cpi);
-        const lab = `${slotLabel(key)} : ${L.length} sur ${cpi}${somme(L) ? ", " + eur.format(somme(L)) : ""}`;
+        const lab = `${slotLabel(key)} : ` + tx("{n} sur {cap}", { n: L.length, cap: cpi }) + (somme(L) ? ", " + eur.format(somme(L)) : "");
         const go = () => clicSlot(key);
         g.push(sv("polygon", Object.assign({ class: "cp" + (move && L.length < cpi ? " target" : ""), points: co.pts.map(p => p.join(",")).join(" ") },
           mini ? {} : { tabindex: 0, role: "button", "aria-label": lab, onclick: go, onkeydown: e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } } }), mini ? null : sv("title", null, lab)));
-        L.slice(0, co.pos.length).forEach((v, j) => { g.push(sv("circle", { class: ["bt", ...etat(v)].join(" "), c: v.couleur, cx: co.pos[j][0], cy: co.pos[j][1], r: tr.r })); if (!mini && prixDe(v)) g.push(sv("text", { class: "px" + (etat(v).includes("dim") ? " dim" : ""), c: v.couleur, x: co.pos[j][0], y: co.pos[j][1] + tr.fs * .36, "font-size": tr.fs }, court(prixDe(v)))); });
+        L.slice(0, co.pos.length).forEach((v, j) => { g.push(sv("circle", { class: ["bt", ...etat(v)].join(" "), c: v.couleur, cx: co.pos[j][0], cy: co.pos[j][1], r: trl.r })); if (!mini && prixDe(v)) g.push(sv("text", { class: "px" + (etat(v).includes("dim") ? " dim" : ""), c: v.couleur, x: co.pos[j][0], y: co.pos[j][1] + trl.fs * .36, "font-size": trl.fs }, court(prixDe(v)))); });
         if (L.length > co.pos.length) { const cx = co.pts.reduce((a, p) => a + p[0], 0) / co.pts.length, cy = co.pts.reduce((a, p) => a + p[1], 0) / co.pts.length; g.push(sv("text", { class: "plus", x: cx, y: cy - 8 }, `+${L.length - co.pos.length}`)); }
       });
-      return h("div", { class: "xb" }, !mini && k.rangs > 1 ? h("span", null, `Box ${b + 1}`) : null, sv("svg", { class: "xbox", viewBox: "-8 -8 416 416", role: mini ? null : "group", "aria-label": mini ? null : `${k.nom}, box ${b + 1}` }, g));
+      return h("div", { class: "xb" }, !mini && k.rangs > 1 ? h("span", null, tx("Box {n}", { n: b + 1 })) : null, sv("svg", { class: "xbox", viewBox: "-8 -8 416 416", role: mini ? null : "group", "aria-label": mini ? null : tx("{nom}, box {n}", { nom: k.nom, n: b + 1 }) }, g));
     }));
   } else {
     const cells = [];
@@ -1062,10 +1095,10 @@ function dessin(k, occ, mini) {   // le rangement dessiné ; mini = vignette non
         if (!m) {
           const v = L[0], cls = ["slot"]; if (t === "etagere") cls.push("etag");
           if (v) cls.push("full", ...etat(v)); else if (move) cls.push("target");
-          const lab = `${slotLabel(key)} : ${v ? titre(v) + (prixDe(v) ? ", " + eur.format(prixDe(v)) : "") : "vide"}`;
+          const lab = `${slotLabel(key)} : ${v ? titre(v) + (prixDe(v) ? ", " + eur.format(prixDe(v)) : "") : tr("vide")}`;
           cells.push(h(tag, Object.assign({ class: cls.join(" "), c: v && v.couleur, title: mini ? null : lab, "aria-label": mini ? null : lab }, act), !mini && v && prixDe(v) ? court(prixDe(v)) : null));
         } else {
-          const lab = `${slotLabel(key)} : ${L.length} sur ${cp}`;
+          const lab = `${slotLabel(key)} : ` + tx("{n} sur {cap}", { n: L.length, cap: cp });
           cells.push(h(tag, Object.assign({ class: "bin" + (move && L.length < cp ? " target" : ""), title: mini ? null : lab, "aria-label": mini ? null : lab }, act),
             pile(k, L, mini, etat),
             h("span", { class: "cnt" }, `${L.length} / ${cp}${!mini && somme(L) ? " · " + eur.format(somme(L)) : ""}`)));
@@ -1096,19 +1129,19 @@ function renderPlan() {
   const occ = occup(), ks = casiers(), out = [];
   if (zoomId && !ks.some(k => k.id === zoomId)) zoomId = null;
   const seul = ks.length === 1, zk = seul ? ks[0] : ks.find(k => k.id === zoomId);
-  const pl = n => `${n} place${n > 1 ? "s" : ""} libre${n > 1 ? "s" : ""}`;
+  const pl = n => tx("{n} place libre|{n} places libres", { n });
   if (!(config && Array.isArray(config.casiers)) && canWrite && db) out.push(h("div", { class: "notice" }, h("span", null, "Ce casier de 6 × 6 est un modèle de départ. Donnez à la cave la forme de la vôtre."), h("button", { class: "btn small", onclick: ouvrirCfg }, "Organiser la cave")));
   if (zk) {
     const d = dessin(zk, occ, false), t = typ(zk), n = zk.rangs * zk.colonnes;
-    const desc = grand12(zk) ? `${zk.rangs} box : 4 losanges de ${Math.min(4, cap(zk))} bouteilles et 8 triangles d'une bouteille` : croix(zk) ? `${zk.rangs} box de ${treillis(zk).comps.length} compartiments, ${cap(zk)} bouteilles chacun` : multi(zk) ? `${n} ${MOT[t]}${n > 1 ? "s" : ""} de ${cap(zk)} bouteilles` : `${zk.rangs} × ${zk.colonnes}`;
+    const desc = grand12(zk) ? tx("{n} box : 4 losanges de {cap} bouteilles et 8 triangles d'une bouteille", { n: zk.rangs, cap: Math.min(4, cap(zk)) }) : croix(zk) ? tx("{n} box de {c} compartiments, {cap} bouteilles chacun", { n: zk.rangs, c: treillis(zk).comps.length, cap: cap(zk) }) : multi(zk) ? tx(MOTS[t], { n }) + " " + tx("de {cap} bouteilles", { cap: cap(zk) }) : `${zk.rangs} × ${zk.colonnes}`;
     if (!seul) out.push(h("button", { class: "btn small back", onclick: () => { zoomId = null; render(); } }, "← Vue d'ensemble"));
-    out.push(h("div", { class: "casier zoom" }, h("h2", null, String(zk.nom), h("small", null, `${desc}, ${pl(d.libres)}${d.valeur ? ", valeur " + eur.format(d.valeur) + (valCave ? " (" + Math.round(100 * d.valeur / valCave) + " % de la cave)" : "") : ""}`)), h("div", { class: "scroll" }, d.el)));
+    out.push(h("div", { class: "casier zoom" }, h("h2", null, String(zk.nom), h("small", null, `${desc}, ${pl(d.libres)}${d.valeur ? tx(", valeur {v}", { v: eur.format(d.valeur) }) + (valCave ? tx(" ({p} % de la cave)", { p: Math.round(100 * d.valeur / valCave) }) : "") : ""}`)), h("div", { class: "scroll" }, d.el)));
   } else {
     const bloc = k => { const d = dessin(k, occ, true), part = valCave && d.valeur ? Math.round(100 * d.valeur / valCave) : 0;
-      return h("button", { class: "bloc" + (d.hit ? " hit" : ""), "aria-label": `Ouvrir ${k.nom}`, onclick: () => { zoomId = k.id; render(); $("plan").scrollIntoView({ block: "start", behavior: "auto" }); } },
+      return h("button", { class: "bloc" + (d.hit ? " hit" : ""), "aria-label": tx("Ouvrir {nom}", { nom: k.nom }), onclick: () => { zoomId = k.id; render(); $("plan").scrollIntoView({ block: "start", behavior: "auto" }); } },
         h("span", { class: "t" }, String(k.nom)), h("div", { class: "vign" }, d.el), h("small", null, `${d.total - d.libres} / ${d.total}`), d.valeur ? h("small", { class: "bval" }, h("b", null, `${d.valeur >= 10000 ? Math.round(d.valeur / 1000) + "k" : court(d.valeur)}\u202f€`), part ? `\u2002${part}\u202f%` : "") : null); };
     out.push(vueCave(ks, bloc));
-    out.push(h("p", { class: "meta", style: "margin:0" }, "Touchez un rangement pour l'ouvrir en grand." + (canWrite ? " Pour en ajouter ou les réorganiser : onglet Réglages." : "")));
+    out.push(h("p", { class: "meta", style: "margin:0" }, tr("Touchez un rangement pour l'ouvrir en grand.") + (canWrite ? tr(" Pour en ajouter ou les réorganiser : onglet Réglages.") : "")));
   }
   const nh = vins.reduce((s, v) => s + hors(v), 0);
   out.push(h("div", { class: "legend" },
@@ -1116,7 +1149,7 @@ function renderPlan() {
     h("span", null, h("i", { class: "ring" }), "cerclé : à boire maintenant"),
     zk ? h("span", null, "chiffre : prix actuel en €") : null,
     zk ? h("span", null, h("i", { class: "vide" }), canWrite ? "place vide : touchez-la pour y ranger une bouteille" : "place vide") : null,
-    nh ? h("span", null, `${nh} bouteille${nh > 1 ? "s" : ""} à ranger (voir l'inventaire)`) : null));
+    nh ? h("span", null, tx("{n} bouteille à ranger (voir l'inventaire)|{n} bouteilles à ranger (voir l'inventaire)", { n: nh })) : null));
   plan.replaceChildren(...out);
   if (focusVin && zk) { const f = plan.querySelector(".focus"); if (f) f.scrollIntoView({ block: "center", behavior: "auto" }); }
 }
@@ -1140,7 +1173,7 @@ function renderInv() {
   const out = [];
   for (const g of noms) {
     const liste = groupes.get(g).sort((a, b) => apogee(a) - apogee(b) || String(a.nom).localeCompare(String(b.nom), "fr"));
-    if (par) { const nbg = liste.reduce((s, v) => s + qte(v), 0); out.push(h("h2", { class: "grp" }, g || "Non renseigné", h("small", null, `${nbg} bouteille${nbg > 1 ? "s" : ""}`))); }
+    if (par) { const nbg = liste.reduce((s, v) => s + qte(v), 0); out.push(h("h2", { class: "grp" }, g || "Non renseigné", h("small", null, tx("{n} bouteille|{n} bouteilles", { n: nbg })))); }
     out.push(h("ul", { class: "list" }, liste.map(ligne)));
   }
   inv.replaceChildren(...out);
@@ -1148,9 +1181,9 @@ function renderInv() {
 
 function ligne(v) {
   const s = statut(v), n = qte(v), rg = rangees(v), hc = hors(v);
-  const fen = v.boireDe && v.boireA ? `${v.boireDe} – ${v.boireA}` : v.boireDe ? `dès ${v.boireDe}` : v.boireA ? `jusqu'en ${v.boireA}` : "";
+  const fen = v.boireDe && v.boireA ? `${v.boireDe} – ${v.boireA}` : v.boireDe ? tx("dès {an}", { an: v.boireDe }) : v.boireA ? tx("jusqu'en {an}", { an: v.boireA }) : "";
   const stop = fn => e => { e.stopPropagation(); fn(); };
-  return h("li", { class: "vin go" + (n ? "" : " fini"), c: v.couleur, role: "button", tabindex: "0", "aria-label": `Ouvrir la fiche de ${titre(v)}`, onclick: () => voirFiche(v.id), onkeydown: e => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); voirFiche(v.id); } } },
+  return h("li", { class: "vin go" + (n ? "" : " fini"), c: v.couleur, role: "button", tabindex: "0", "aria-label": tx("Ouvrir la fiche de {vin}", { vin: titre(v) }), onclick: () => voirFiche(v.id), onkeydown: e => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); voirFiche(v.id); } } },
     h("div", { class: "yr" }, vign(v), v.millesime ? String(v.millesime) : "NM", h("small", { title: COULEURS[v.couleur] || "Vin", style: "white-space:nowrap" }, (c => (c.length > 5 ? c.slice(0, 5) + "." : c))(COULEURS[v.couleur] || "Vin"))),
     h("div", null,
       h("div", { class: "nom" }, String(v.nom || "Sans nom")),
@@ -1160,13 +1193,13 @@ function ligne(v) {
         v.exemple && h("span", { class: "pill ex" }, "Exemple"),
         n && s ? pilule(v, s) : null,
         enVente(v) ? pilVente(v) : null,
-        !n && h("span", null, `Épuisé${num(v.bues) ? `, ${v.bues} bue${v.bues > 1 ? "s" : ""}` : ""}`),
+        !n && h("span", null, tr("Épuisé") + (num(v.bues) ? ", " + tx("{n} bue|{n} bues", { n: v.bues }) : "")),
         fen && h("span", null, fen),
-        num(v.prix) ? h("span", null, `achat ${eur.format(v.prix)}`) : null,
-        num(v.prixActuel) ? h("span", null, `actuel ${eur.format(v.prixActuel)}`) : null,
-        num(v.note) ? h("span", { class: "stars", title: `${v.note} sur 5` }, "★".repeat(Math.min(5, v.note))) : null),
+        num(v.prix) ? h("span", null, tx("achat {p}", { p: eur.format(v.prix) })) : null,
+        num(v.prixActuel) ? h("span", null, tx("actuel {p}", { p: eur.format(v.prixActuel) })) : null,
+        num(v.note) ? h("span", { class: "stars", title: tx("{n} sur 5", { n: v.note }) }, "★".repeat(Math.min(5, v.note))) : null),
       rg.length ? h("div", { class: "tags" }, h("span", null, listePlaces(v)), h("button", { class: "link", onclick: stop(() => voirPlan(v.id)) }, "Voir sur le plan"), canWrite && h("button", { class: "link", onclick: stop(() => lancerDeplacement(v.id)) }, "Déplacer")) : null,
-      hc ? h("div", { class: "tags" }, h("span", null, `${hc} à ranger`), canWrite && h("button", { class: "link", onclick: stop(() => lancerRangement(v.id)) }, "Ranger")) : null,
+      hc ? h("div", { class: "tags" }, h("span", null, tx("{n} à ranger", { n: hc })), canWrite && h("button", { class: "link", onclick: stop(() => lancerRangement(v.id)) }, "Ranger")) : null,
       v.commentaire && h("div", { class: "meta", style: "margin-top:6px" }, String(v.commentaire))),
     h("div", { class: "side" }, h("div", { class: "qty" }, String(n), h("small", null, " bt")), h("span", { class: "chev", "aria-hidden": "true" }, "›")));
 }
@@ -1189,7 +1222,7 @@ function lancerDeplacement(id) {
   $("slotBody").replaceChildren(
     h("p", { class: "meta" }, titre(v)),
     h("h2", null, "Quelle bouteille déplacer ?"),
-    h("div", { class: "stack" }, cles.map(q => h("button", { class: "btn", onclick: () => { dlg.close(); versPlan({ id, slot: q }); } }, slotLabel(q) + (cnt[q] > 1 ? ` · ${cnt[q]} bouteilles` : "")))),
+    h("div", { class: "stack" }, cles.map(q => h("button", { class: "btn", onclick: () => { dlg.close(); versPlan({ id, slot: q }); } }, slotLabel(q) + (cnt[q] > 1 ? tx(" · {n} bouteilles", { n: cnt[q] }) : "")))),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { class: "btn", onclick: () => dlg.close() }, "Fermer"))));
   montrer(dlg);
 }
@@ -1203,11 +1236,11 @@ function clicSlot(key) {
     if (key === from) { move = null; render(); return; }
     if (libre <= 0) return toast("Plus de place ici. Choisissez un autre emplacement.");
     if (!from) {   // bouteille pas encore rangée : on reste en mode rangement tant qu'il en reste
-      placer(id, key).then(() => { const v = vins.find(x => x.id === id), reste = v ? hors(v) : 0; if (!reste) { move = null; render(); } toast(`Rangée : ${slotLabel(key)}.${reste ? ` Encore ${reste} à ranger.` : ""}`); });
+      placer(id, key).then(() => { const v = vins.find(x => x.id === id), reste = v ? hors(v) : 0; if (!reste) { move = null; render(); } toast(tx("Rangée : {lieu}.", { lieu: slotLabel(key) }) + (reste ? " " + tx("Encore {n} à ranger.", { n: reste }) : "")); });
       return;
     }
     move = null;
-    mutate(id, x => ({ places: [...sans(places(x), from), key] })).then(() => toast(`Déplacée : ${slotLabel(key)}.`));
+    mutate(id, x => ({ places: [...sans(places(x), from), key] })).then(() => toast(tx("Déplacée : {lieu}.", { lieu: slotLabel(key) })));
     return;
   }
   focusVin = null;
@@ -1222,7 +1255,7 @@ function clicSlot(key) {
     canWrite && ["Ajouter une ou des bouteilles", () => { fermer(); ajouterBouteilles(v.id); }],
     canWrite && ["Supprimer la fiche", () => { fermer(); confirmerSuppression(v.id); }]]); };
   const kids = [
-    h("p", { class: "meta" }, !L.length ? "Emplacement vide" : multi(k) ? `${L.length} bouteille${L.length > 1 ? "s" : ""}, ${libre} place${libre > 1 ? "s" : ""} libre${libre > 1 ? "s" : ""}${L.reduce((a, v) => a + prixDe(v), 0) ? " · valeur " + eur.format(L.reduce((a, v) => a + prixDe(v), 0)) : ""}` : "Emplacement occupé"),
+    h("p", { class: "meta" }, !L.length ? "Emplacement vide" : multi(k) ? tx("{n} bouteille|{n} bouteilles", { n: L.length }) + ", " + tx("{n} place libre|{n} places libres", { n: libre }) + (L.reduce((a, v) => a + prixDe(v), 0) ? " · " + tx("valeur {somme}", { somme: eur.format(L.reduce((a, v) => a + prixDe(v), 0)) }) : "") : "Emplacement occupé"),
     h("h2", { tabindex: "-1", autofocus: true, style: "outline:none" }, slotLabel(key)),
     ...uniq.map(v => {
       const s = statut(v), ici = L.filter(x => x.id === v.id).length;
@@ -1230,7 +1263,7 @@ function clicSlot(key) {
         h("div", { class: "ihead" }, vign(v), h("div", null,
           h("b", null, titre(v) + (ici > 1 ? `  × ${ici}` : "")),
           h("span", { class: "meta" }, [COULEURS[v.couleur], v.domaine, v.appellation, v.region].filter(Boolean).join(" · ")))),
-        h("div", { class: "tags" }, s && h("span", { class: "pill " + s }, LIB[s]), h("span", null, `${qte(v)} en cave au total`), prixDe(v) ? h("span", null, eur.format(prixDe(v))) : null),
+        h("div", { class: "tags" }, s && h("span", { class: "pill " + s }, LIB[s]), h("span", null, tx("{n} en cave au total", { n: qte(v) })), prixDe(v) ? h("span", null, eur.format(prixDe(v))) : null),
         uniq.length > 1 ? h("div", { class: "row" }, menuDe(v)) : null);
     })];
   if (libre > 0 && canWrite) {
@@ -1248,7 +1281,7 @@ function clicSlot(key) {
 
 /* ---------- choisir une bouteille déjà en cave ---------- */
 let pickKey = null;
-function ouvrirChoix(key) { pickKey = key; $("pickSub").textContent = slotLabel(key); $("pickQ").value = ""; listeChoix(); montrer($("pickDlg")); }
+function ouvrirChoix(key) { pickKey = key; $("pickSub").textContent = tr(slotLabel(key)); $("pickQ").value = ""; listeChoix(); montrer($("pickDlg")); }
 function listeChoix() {
   const key = pickKey, q = norm($("pickQ").value);
   const vu = v => !q || norm([v.nom, v.domaine, v.appellation, v.region, v.millesime].join(" ")).includes(q);
@@ -1262,10 +1295,10 @@ function listeChoix() {
   const B = [];
   for (const v of vins.filter(vu).sort(tri)) { const cnt = {}; rangees(v).forEach(p => { if (p !== key) cnt[p] = (cnt[p] || 0) + 1; }); for (const p of Object.keys(cnt).sort((a, b) => slotShort(a).localeCompare(slotShort(b), "fr", { numeric: true }))) B.push({ v, p, n: cnt[p] }); }
   $("pickList").replaceChildren(
-    h("div", { class: "psec" }, `À ranger (${A.reduce((s, v) => s + hors(v), 0)})`),
-    ...(A.length ? A.map(v => ligneC(v, `${hors(v)} bouteille${hors(v) > 1 ? "s" : ""} à ranger`, "Ranger ici", true, () => placer(v.id, key).then(() => toast(`Rangée : ${slotLabel(key)}.`)))) : [h("span", { class: "meta" }, q ? "Aucun vin à ranger ne correspond." : "Aucune bouteille en attente de rangement.")]),
-    h("div", { class: "psec" }, `Déjà rangées (${B.reduce((s, x) => s + x.n, 0)})`),
-    ...(B.length ? B.map(x => ligneC(x.v, slotLabel(x.p) + (x.n > 1 ? ` · ${x.n} bouteilles` : ""), "Déplacer ici", false, () => mutate(x.v.id, y => (places(y).includes(x.p) ? { places: [...sans(places(y), x.p), key] } : null)).then(() => toast(`Déplacée : ${slotLabel(key)}.`)))) : [h("span", { class: "meta" }, q ? "Aucune bouteille rangée ne correspond." : "Aucune bouteille rangée ailleurs.")]));
+    h("div", { class: "psec" }, tx("À ranger ({n})", { n: A.reduce((s, v) => s + hors(v), 0) })),
+    ...(A.length ? A.map(v => ligneC(v, tx("{n} bouteille à ranger|{n} bouteilles à ranger", { n: hors(v) }), "Ranger ici", true, () => placer(v.id, key).then(() => toast(tx("Rangée : {lieu}.", { lieu: slotLabel(key) }))))) : [h("span", { class: "meta" }, q ? "Aucun vin à ranger ne correspond." : "Aucune bouteille en attente de rangement.")]),
+    h("div", { class: "psec" }, tx("Déjà rangées ({n})", { n: B.reduce((s, x) => s + x.n, 0) })),
+    ...(B.length ? B.map(x => ligneC(x.v, slotLabel(x.p) + (x.n > 1 ? " · " + tx("{n} bouteille|{n} bouteilles", { n: x.n }) : ""), "Déplacer ici", false, () => mutate(x.v.id, y => (places(y).includes(x.p) ? { places: [...sans(places(y), x.p), key] } : null)).then(() => toast(tx("Déplacée : {lieu}.", { lieu: slotLabel(key) }))))) : [h("span", { class: "meta" }, q ? "Aucune bouteille rangée ne correspond." : "Aucune bouteille rangée ailleurs.")]));
 }
 $("pickQ").addEventListener("input", listeChoix);
 $("pickClose").addEventListener("click", () => $("pickDlg").close());
@@ -1277,12 +1310,12 @@ function ajouterBouteilles(id) {
   const go = ranger => async () => {
     const k = Math.max(1, Math.min(999, parseInt(nb.value, 10) || 1));
     if (!(await quota(k))) return;
-    try { await mutate(id, x => ({ vrac: num(x.vrac) + k, ajouts: plusAjout(x, k) })); dlg.close(); toast(`${k} bouteille${k > 1 ? "s" : ""} ajoutée${k > 1 ? "s" : ""} à « ${titre(v)} » : ${qte(v) + k} au total.`); if (ranger) lancerRangement(id); else voirFiche(id); }
+    try { await mutate(id, x => ({ vrac: num(x.vrac) + k, ajouts: plusAjout(x, k) })); dlg.close(); toast(tx("{n} bouteille ajoutée à « {vin} » : {total} au total.|{n} bouteilles ajoutées à « {vin} » : {total} au total.", { n: k, vin: titre(v), total: qte(v) + k })); if (ranger) lancerRangement(id); else voirFiche(id); }
     catch (e) { fail(e); }
   };
   $("slotBody").replaceChildren(
-    h("p", { class: "meta" }, `${qte(v)} bouteille${qte(v) > 1 ? "s" : ""} aujourd'hui`),
-    h("h2", null, `Ajouter à « ${titre(v)} »`),
+    h("p", { class: "meta" }, tx("{n} bouteille aujourd'hui|{n} bouteilles aujourd'hui", { n: qte(v) })),
+    h("h2", null, tx("Ajouter à « {vin} »", { vin: titre(v) })),
     h("label", { class: "lab" }, "Bouteilles à ajouter", nb),
     h("div", { class: "stack" },
       h("button", { class: "btn primary", onclick: go(true) }, "Ajouter et ranger maintenant"),
@@ -1295,14 +1328,14 @@ function ajouterBouteilles(id) {
 function confirmerSuppression(id) {
   const v = vins.find(x => x.id === id); if (!v) return;
   const dlg = $("slotDlg"), rg = rangees(v).length, hc = hors(v), nbS = sorties.filter(x => x.vinId === id).length;
-  const ok = h("button", { class: "btn danger", onclick: async () => { ok.disabled = true; try { await deleteVin(id); dlg.close(); toast(`« ${titre(v)} » supprimé.`); } catch (e) { ok.disabled = false; fail(e); } } }, "Supprimer définitivement");
+  const ok = h("button", { class: "btn danger", onclick: async () => { ok.disabled = true; try { await deleteVin(id); dlg.close(); toast(tx("« {vin} » supprimé.", { vin: titre(v) })); } catch (e) { ok.disabled = false; fail(e); } } }, "Supprimer définitivement");
   $("slotBody").replaceChildren(...[
     h("p", { class: "meta" }, "Suppression d'une fiche"),
-    h("h2", null, `Supprimer « ${titre(v)} » ?`),
-    rg ? h("p", { class: "err" }, `Attention : ${rg} bouteille${rg > 1 ? "s" : ""} de ce vin ${rg > 1 ? "sont rangées" : "est rangée"} dans la cave (${listePlaces(v)}). En supprimant la fiche, vous supprimez aussi ${rg > 1 ? "ces bouteilles" : "cette bouteille"} du plan, et ${rg > 1 ? "leurs places sont libérées" : "sa place est libérée"}.`) : null,
-    hc ? h("p", null, `${hc} bouteille${hc > 1 ? "s" : ""} à ranger ${hc > 1 ? "disparaissent" : "disparaît"} aussi de l'inventaire.`) : null,
+    h("h2", null, tx("Supprimer « {vin} » ?", { vin: titre(v) })),
+    rg ? h("p", { class: "err" }, tx("Attention : {n} bouteille de ce vin est rangée dans la cave ({lieux}). En supprimant la fiche, vous supprimez aussi cette bouteille du plan, et sa place est libérée.|Attention : {n} bouteilles de ce vin sont rangées dans la cave ({lieux}). En supprimant la fiche, vous supprimez aussi ces bouteilles du plan, et leurs places sont libérées.", { n: rg, lieux: listePlaces(v) })) : null,
+    hc ? h("p", null, tx("{n} bouteille à ranger disparaît aussi de l'inventaire.|{n} bouteilles à ranger disparaissent aussi de l'inventaire.", { n: hc })) : null,
     !rg && !hc ? h("p", null, "Ce vin n'a plus aucune bouteille en cave.") : null,
-    h("p", { class: "meta" }, `La fiche, sa photo et ses conseils sont effacés pour de bon, sans passer par les sorties.${nbS ? ` Les ${nbS > 1 ? nbS + " sorties déjà enregistrées restent" : "la sortie déjà enregistrée reste"} dans « Sorties ».` : ""} Pour une bouteille bue ou offerte, utilisez plutôt « Sortir une bouteille ».`),
+    h("p", { class: "meta" }, tr("La fiche, sa photo et ses conseils sont effacés pour de bon, sans passer par les sorties.") + (nbS ? " " + tx("La sortie déjà enregistrée reste dans « Sorties ».|Les {n} sorties déjà enregistrées restent dans « Sorties ».", { n: nbS }) : "") + " " + tr("Pour une bouteille bue ou offerte, utilisez plutôt « Sortir une bouteille ».")),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { class: "btn", onclick: () => dlg.close() }, "Annuler"), ok))].filter(Boolean));
   montrer(dlg);
 }
@@ -1311,12 +1344,12 @@ function confirmerSuppression(id) {
 function dupliquer(id) {
   const v = vins.find(x => x.id === id); if (!v) return;
   const dlg = $("slotDlg"), pris = new Set(vins.filter(x => norm(x.nom) === norm(v.nom) && norm(x.domaine) === norm(v.domaine) && x.couleur === v.couleur).map(x => num(x.millesime)));
-  const sel = h("select", { id: "dupAn" }, Array.from({ length: 90 }, (_, i) => AN - i).map(y => h("option", { value: String(y), disabled: pris.has(y) }, pris.has(y) ? `${y} (déjà référencé)` : String(y))));
+  const sel = h("select", { id: "dupAn" }, Array.from({ length: 90 }, (_, i) => AN - i).map(y => h("option", { value: String(y), disabled: pris.has(y) }, pris.has(y) ? tx("{an} (déjà référencé)", { an: y }) : String(y))));
   const libre = Array.from({ length: 90 }, (_, i) => AN - i).find(y => !pris.has(y)); if (libre) sel.value = String(libre);
   const ok = h("button", { class: "btn primary", onclick: async () => {
     const opt = sel.options[sel.selectedIndex], an = parseInt(opt ? opt.value : sel.value, 10);
     if (!(an >= 1900 && an <= AN + 1)) return toast("Choisissez un millésime dans la liste.");
-    if (pris.has(an)) return toast(`Le millésime ${an} de ce vin est déjà référencé.`);
+    if (pris.has(an)) return toast(tx("Le millésime {an} de ce vin est déjà référencé.", { an }));
     ok.disabled = true;
     if (!(await quota(1))) { ok.disabled = false; return; }
     try {
@@ -1329,13 +1362,13 @@ function dupliquer(id) {
       if (num(cree.millesime) !== an) await mutate(nid, () => ({ millesime: an }));
       voirFiche(nid);
       if (sample) {
-        toast(`« ${v.nom} ${an} » créé. L'application estime le prix et la période de dégustation de ce millésime…`);
-        if (await demanderConseils(nid, null)) toast(`Fiche du ${an} complétée : prix, fenêtre de dégustation et conseils sont des estimations.`);
-      } else toast(`« ${v.nom} ${an} » créé, avec 1 bouteille à ranger.`);
+        toast(tx("« {vin} » créé. L'application estime le prix et la période de dégustation de ce millésime…", { vin: `${v.nom} ${an}` }));
+        if (await demanderConseils(nid, null)) toast(tx("Fiche du {an} complétée : prix, fenêtre de dégustation et conseils sont des estimations.", { an }));
+      } else toast(tx("« {vin} » créé, avec 1 bouteille à ranger.", { vin: `${v.nom} ${an}` }));
     } catch (e) { ok.disabled = false; fail(e); }
   } }, "Valider");
   $("slotBody").replaceChildren(
-    h("p", { class: "meta" }, `Copie de « ${titre(v)} »`),
+    h("p", { class: "meta" }, tx("Copie de « {vin} »", { vin: titre(v) })),
     h("h2", null, "Autre millésime"),
     h("label", { class: "lab" }, "Millésime", sel),
     h("p", { class: "meta" }, "Le nom, le domaine, l'appellation, la région, la couleur et les cépages sont repris. Le prix actuel, la fenêtre de dégustation et les conseils sont ensuite estimés par l'application pour ce millésime. Le prix d'achat, la note et la photo restent à renseigner."),
@@ -1358,7 +1391,7 @@ function voirFiche(id, grand) {
   const v = vins.find(x => x.id === id); if (!v) return;
   vueId = id;
   const dlg = $("viewDlg"), s = statut(v), n = qte(v), rg = rangees(v).length, hc = hors(v);
-  const fen = v.boireDe && v.boireA ? `${v.boireDe} – ${v.boireA}` : v.boireDe ? `à partir de ${v.boireDe}` : v.boireA ? `jusqu'en ${v.boireA}` : "";
+  const fen = v.boireDe && v.boireA ? `${v.boireDe} – ${v.boireA}` : v.boireDe ? tx("à partir de {an}", { an: v.boireDe }) : v.boireA ? tx("jusqu'en {an}", { an: v.boireA }) : "";
   const fact = (l, val, cls, big) => (val ? h("div", { class: cls }, h("dt", null, l), h("dd", { class: big ? "big" : null }, val)) : null);
   const reprendre = () => { photoCible = id; $("photoFile").click(); };
   const img = h("img", { alt: "Photo de l'étiquette, en grand" }), mini = h("img", { alt: "" });
@@ -1370,15 +1403,15 @@ function voirFiche(id, grand) {
   } }, mini, bouteille(v.couleur));
   loadPhoto(id).then(d => {
     if (d) { img.src = d; mini.src = d; rond.classList.add("a"); if (grand) { cadre.hidden = false; rond.setAttribute("aria-expanded", "true"); } }
-    else rond.setAttribute("aria-label", canWrite ? "Pas de photo : prendre l'étiquette en photo" : "Pas de photo");
+    else rond.setAttribute("aria-label", tr(canWrite ? "Pas de photo : prendre l'étiquette en photo" : "Pas de photo"));
   }).catch(() => { if (!canWrite) rond.hidden = true; });
   const S = sorties.filter(x => x.vinId === id).sort((a, b) => num(b.le) - num(a.le));
   const nbS = t => S.filter(x => x.type === t).length;
   const A = ajoutsDe(v), connus = A.reduce((a, x) => a + x.n, 0), initial = n + S.length - connus;   // ce qui était là avant le suivi des entrées
   const mouvements = [
-    ...A.map(x => ({ le: num(x.le), n: x.n, t: x.n > 0 ? `ajoutée${x.n > 1 ? "s" : ""}` : "retirées par correction du nombre" })),
-    ...(initial > 0 ? [{ le: num(v.creeLe), n: initial, t: A.length ? "à la création de la fiche (estimation)" : "à la création de la fiche" }] : []),
-    ...S.map(x => ({ le: num(x.le), n: -1, t: `${(SORTIES[x.type] || "Retirée").toLowerCase()}${num(x.note) ? " · " + "★".repeat(Math.min(5, x.note)) : ""}${typeof x.commentaire === "string" && x.commentaire ? " · " + x.commentaire : ""}` }))].sort((a, b) => b.le - a.le);
+    ...A.map(x => ({ le: num(x.le), n: x.n, t: x.n > 0 ? tx("ajoutée|ajoutées", { n: x.n }) : tr("retirées par correction du nombre") })),
+    ...(initial > 0 ? [{ le: num(v.creeLe), n: initial, t: tr(A.length ? "à la création de la fiche (estimation)" : "à la création de la fiche") }] : []),
+    ...S.map(x => ({ le: num(x.le), n: -1, t: `${(SORTIES[x.type] || tr("Retirée")).toLowerCase()}${num(x.note) ? " · " + "★".repeat(Math.min(5, x.note)) : ""}${typeof x.commentaire === "string" && x.commentaire ? " · " + x.commentaire : ""}` }))].sort((a, b) => b.le - a.le);
   const entrees = mouvements.filter(x => x.n > 0).reduce((a, x) => a + x.n, 0);
   const lieu = [v.region, v.pays].filter(Boolean).join(", ");
   const liste = x => (Array.isArray(x) ? x.filter(y => typeof y === "string" && y) : []);
@@ -1392,25 +1425,25 @@ function voirFiche(id, grand) {
     cadre,
     h("div", { class: "tags", style: "margin:0" },
       n && s ? pilule(v, s) : null, enVente(v) ? pilVente(v) : null, !n ? h("span", { class: "pill ex" }, "Épuisé") : null,
-      num(v.note) ? h("span", { class: "stars", title: `${v.note} sur 5` }, "★".repeat(Math.min(5, v.note)) + "☆".repeat(5 - Math.min(5, v.note))) : h("span", null, "Pas encore noté")),
+      num(v.note) ? h("span", { class: "stars", title: tx("{n} sur 5", { n: v.note }) }, "★".repeat(Math.min(5, v.note)) + "☆".repeat(5 - Math.min(5, v.note))) : h("span", null, "Pas encore noté")),
     h("dl", { class: "facts" },
-      fact("Bouteilles", [String(n), h("small", null, n ? `${rg} rangée${rg > 1 ? "s" : ""}, ${hc} à ranger` : "")], null, true),
-      fact("Prix actuel", num(v.prixActuel) ? [eur.format(v.prixActuel), num(v.prixMaj) ? h("small", null, `au ${new Date(v.prixMaj).toLocaleDateString("fr-FR")}`) : null, (H => (H.length > 1 ? h("small", null, "Avant : " + H.slice(-4, -1).reverse().map(x => `${eur.format(x.p)} (${new Date(x.le).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })})`).join(", ")) : null))(histDe(v))] : "", null, true),
+      fact("Bouteilles", [String(n), h("small", null, n ? tx("{n} rangée|{n} rangées", { n: rg }) + ", " + tx("{n} à ranger", { n: hc }) : "")], null, true),
+      fact("Prix actuel", num(v.prixActuel) ? [eur.format(v.prixActuel), num(v.prixMaj) ? h("small", null, `au ${new Date(v.prixMaj).toLocaleDateString(LOCALE())}`) : null, (H => (H.length > 1 ? h("small", null, tr("Avant : ") + H.slice(-4, -1).reverse().map(x => `${eur.format(x.p)} (${new Date(x.le).toLocaleDateString(LOCALE(), { month: "short", year: "numeric" })})`).join(", ")) : null))(histDe(v))] : "", null, true),
       fact("Appellation", v.appellation && String(v.appellation)), fact("Région", lieu),
       fact("À boire", fen), fact("Meilleure période", typeof v.apogee === "string" && v.apogee), fact("Prix d'achat", num(v.prix) ? eur.format(v.prix) : ""),
       fact("Contenance", contTxt(contDe(v))),
       fact("Cépages", v.cepages && String(v.cepages), "wide"),
       fact("Emplacements", listePlaces(v), "wide"),
       fact("Commentaire", v.commentaire && String(v.commentaire), "wide")),
-    typeof v.gout === "string" && v.gout ? h("div", { class: "vhist" }, h("b", null, "Au goût"), h("p", null, v.gout), typeof v.service === "string" && v.service ? h("p", { class: "meta" }, `Service : ${v.service}`) : null) : null,
+    typeof v.gout === "string" && v.gout ? h("div", { class: "vhist" }, h("b", null, "Au goût"), h("p", null, v.gout), typeof v.service === "string" && v.service ? h("p", { class: "meta" }, tx("Service : {s}", { s: v.service })) : null) : null,
     liste(v.plats).length ? h("div", { class: "vhist" }, h("b", null, "À table"), h("div", { class: "tags", style: "margin:0" }, liste(v.plats).map(x => h("span", { class: "plat" }, x)))) : null,
     liste(v.recettes).length ? h("div", { class: "vhist" }, h("b", null, "Idées de recettes"), h("ul", null, liste(v.recettes).map(x => h("li", null, x)))) : null,
-    aConseils ? h("p", { class: "meta", style: "font-size:.82rem" }, `Conseils rédigés par l'application${num(v.conseilsLe) ? " le " + new Date(v.conseilsLe).toLocaleDateString("fr-FR") : ""}, d'après l'appellation et le millésime, sans avoir goûté cette bouteille. `,
+    aConseils ? h("p", { class: "meta", style: "font-size:.82rem" }, (num(v.conseilsLe) ? tx("Conseils rédigés par l'application le {date}, d'après l'appellation et le millésime, sans avoir goûté cette bouteille.", { date: new Date(v.conseilsLe).toLocaleDateString(LOCALE()) }) : tr("Conseils rédigés par l'application, d'après l'appellation et le millésime, sans avoir goûté cette bouteille.")) + " ",
       canWrite && sample ? h("button", { class: "link", onclick: e => demanderConseils(id, e.target) }, "Les refaire") : null) : null,
     !aConseils && canWrite && sample ? h("div", { class: "scanbar" }, h("button", { class: "btn small primary", onclick: e => demanderConseils(id, e.target) }, "Demander les conseils"), h("span", null, "Meilleure période, goût du vin, plats et recettes.")) : null,
-    mouvements.length ? h("div", { class: "vhist" }, h("b", null, `Entrées et sorties : ${[entrees && `${entrees} ajoutée${entrees > 1 ? "s" : ""}`, nbS("bue") && `${nbS("bue")} bue${nbS("bue") > 1 ? "s" : ""}`, nbS("offerte") && `${nbS("offerte")} offerte${nbS("offerte") > 1 ? "s" : ""}`, nbS("vendue") && `${nbS("vendue")} vendue${nbS("vendue") > 1 ? "s" : ""}`, nbS("retiree") && `${nbS("retiree")} retirée${nbS("retiree") > 1 ? "s" : ""}`].filter(Boolean).join(", ")}`),
-      mouvements.slice(0, 12).map(x => h("span", { class: "meta" }, h("b", { style: `color:var(${x.n > 0 ? "--ok" : "--late"});font-variant-numeric:tabular-nums` }, `${x.n > 0 ? "+" : "−"}${Math.abs(x.n)}`), `  ${x.le ? new Date(x.le).toLocaleDateString("fr-FR") : "date inconnue"} · ${x.t}`)),
-      mouvements.length > 12 ? h("span", { class: "meta" }, `… et ${mouvements.length - 12} mouvements plus anciens.`) : null) : null,
+    mouvements.length ? h("div", { class: "vhist" }, h("b", null, tr("Entrées et sorties") + " : " + [entrees && tx("{n} ajoutée|{n} ajoutées", { n: entrees }), nbS("bue") && tx("{n} bue|{n} bues", { n: nbS("bue") }), nbS("offerte") && tx("{n} offerte|{n} offertes", { n: nbS("offerte") }), nbS("vendue") && tx("{n} vendue|{n} vendues", { n: nbS("vendue") }), nbS("retiree") && tx("{n} retirée|{n} retirées", { n: nbS("retiree") })].filter(Boolean).join(", ")),
+      mouvements.slice(0, 12).map(x => h("span", { class: "meta" }, h("b", { style: `color:var(${x.n > 0 ? "--ok" : "--late"});font-variant-numeric:tabular-nums` }, `${x.n > 0 ? "+" : "−"}${Math.abs(x.n)}`), `  ${x.le ? new Date(x.le).toLocaleDateString(LOCALE()) : tr("date inconnue")} · ${x.t}`)),
+      mouvements.length > 12 ? h("span", { class: "meta" }, tx("… et {n} mouvements plus anciens.", { n: mouvements.length - 12 })) : null) : null,
     h("div", { class: "foot" },
       actions([
         rg && ["Voir sur le plan", () => { dlg.close(); voirPlan(id); }],
@@ -1444,17 +1477,17 @@ function ouvrirFiche(id, slot) {
   $("f-total").value = id ? qte(v) : 1; $("f-note").value = num(v.note);
   if (v.prix) $("f-prix").value = String(v.prix).replace(".", ",");
   if (v.prixActuel) $("f-prixActuel").value = String(v.prixActuel).replace(".", ",");
-  const pi = $("prixInfo"); pi.hidden = !num(v.prixMaj); if (num(v.prixMaj)) pi.textContent = `Prix actuel mis à jour le ${new Date(v.prixMaj).toLocaleDateString("fr-FR")}.`;
+  const pi = $("prixInfo"); pi.hidden = !num(v.prixMaj); if (num(v.prixMaj)) pi.textContent = tr(tx("Prix actuel mis à jour le {date}.", { date: new Date(v.prixMaj).toLocaleDateString(LOCALE()) }));
   photoNew = null; conseilsNew = null; showPhoto(null);
   if (id) loadPhoto(id).then(d => { if (editId === id && !photoNew && $("dlg").open) showPhoto(d); }).catch(() => {});
-  $("dlgTitle").textContent = id ? "Modifier le vin" : "Ajouter un vin";
+  $("dlgTitle").textContent = tr(id ? "Modifier le vin" : "Ajouter un vin");
   const ds = $("dlgSlot"); ds.hidden = !slot && !id;
-  ds.textContent = slot ? `Cette bouteille sera rangée : ${slotLabel(slot)}.` : id ? `${qte(v)} bouteille${qte(v) > 1 ? "s" : ""} : ${rangees(v).length} rangée${rangees(v).length > 1 ? "s" : ""}${listePlaces(v) ? " (" + listePlaces(v) + ")" : ""}, ${hors(v)} à ranger.` : "";
+  ds.textContent = tr(slot ? tx("Cette bouteille sera rangée : {lieu}.", { lieu: slotLabel(slot) }) : id ? tx("{n} bouteille|{n} bouteilles", { n: qte(v) }) + " : " + tx("{n} rangée|{n} rangées", { n: rangees(v).length }) + (listePlaces(v) ? " (" + listePlaces(v) + ")" : "") + ", " + tx("{n} à ranger", { n: hors(v) }) + "." : "");
   $("scanbar").hidden = !canWrite;
-  $("scanBtn").textContent = id ? "Ajouter ou changer la photo" : canScan ? "Scanner l'étiquette" : "Photographier l'étiquette";
-  $("scanMsg").textContent = id || !canScan ? "La photo de l'étiquette est conservée dans la fiche." : "Prenez l'étiquette en photo : l'application remplit la fiche et la photo est conservée."; $("scanMsg").className = "";
+  $("scanBtn").textContent = tr(id ? "Ajouter ou changer la photo" : canScan ? "Scanner l'étiquette" : "Photographier l'étiquette");
+  $("scanMsg").textContent = tr(id || !canScan ? "La photo de l'étiquette est conservée dans la fiche." : "Prenez l'étiquette en photo : l'application remplit la fiche et la photo est conservée."); $("scanMsg").className = "";
   $("scanBtn").hidden = false; $("scanStop").hidden = true;
-  $("del").hidden = !id; $("del").textContent = "Supprimer";
+  $("del").hidden = !id; $("del").textContent = tr("Supprimer");
   $("err").hidden = true; $("save").disabled = false; $("attente").hidden = true;
   montrer($("dlg"));
 }
@@ -1474,18 +1507,18 @@ function ouvrirDoublon(m) {
   const ajouter = h("button", { class: "btn primary", onclick: () => {
     const k = Math.max(1, Math.min(999, parseInt(nb.value, 10) || 1)); ajouter.disabled = true;
     quota(k).then(ok => { if (!ok) { ajouter.disabled = false; return; } finir(async () => { await mutate(m.id, v => ({ places: slot ? [...places(v), slot] : places(v), vrac: num(v.vrac) + k - (slot ? 1 : 0), ajouts: plusAjout(v, k) }));
-      toast(`${k} bouteille${k > 1 ? "s" : ""} ajoutée${k > 1 ? "s" : ""} à « ${titre(m)} » : ${qte(m) + k} au total.${slot ? " " + slotLabel(slot) + "." : k ? " À ranger depuis le plan." : ""}`); }); });
+      toast(tx("{n} bouteille ajoutée à « {vin} » : {total} au total.|{n} bouteilles ajoutées à « {vin} » : {total} au total.", { n: k, vin: titre(m), total: qte(m) + k }) + (slot ? " " + slotLabel(slot) + "." : k ? " " + tr("À ranger depuis le plan.") : "")); }); });
   } }, "Ajouter à cette fiche");
   $("slotBody").replaceChildren(...[
     h("p", { class: "meta" }, "Ce vin semble déjà référencé"),
-    h("h2", null, `Une fiche existe pour « ${titre(m)} »`),
+    h("h2", null, tx("Une fiche existe pour « {vin} »", { vin: titre(m) })),
     h("div", { class: "ihead" }, vign(m), h("div", null, h("b", null, titre(m)), h("span", { class: "meta" }, [m.domaine, m.appellation].filter(Boolean).join(" · ")),
-      h("span", { class: "meta" }, `${qte(m)} bouteille${qte(m) > 1 ? "s" : ""} : ${rg} rangée${rg > 1 ? "s" : ""}, ${hc} à ranger`))),
+      h("span", { class: "meta" }, tx("{n} bouteille|{n} bouteilles", { n: qte(m) }) + " : " + tx("{n} rangée|{n} rangées", { n: rg }) + ", " + tx("{n} à ranger", { n: hc })))),
     h("label", { class: "lab" }, "Bouteilles à ajouter", nb),
-    slot ? h("p", { class: "meta" }, `${slotLabel(slot)} : la première y sera rangée, les autres resteront à ranger.`) : null,
+    slot ? h("p", { class: "meta" }, slotLabel(slot) + " : " + tr("la première y sera rangée, les autres resteront à ranger.")) : null,
     h("div", { class: "stack" },
       ajouter,
-      slot && hc ? h("button", { class: "btn", onclick: () => finir(async () => { await placer(m.id, slot); toast(`Rangée : ${slotLabel(slot)}, sans bouteille en plus.`); }) }, `Ranger ici une des ${hc} à ranger, sans en ajouter`) : null,
+      slot && hc ? h("button", { class: "btn", onclick: () => finir(async () => { await placer(m.id, slot); toast(tx("Rangée : {lieu}, sans bouteille en plus.", { lieu: slotLabel(slot) })); }) }, tx("Ranger ici une des {n} à ranger, sans en ajouter", { n: hc })) : null,
       h("button", { class: "btn", onclick: () => { dlg.close(); forcerNouveau = true; $("form").requestSubmit(); } }, "Non, créer une fiche séparée"),
       h("button", { class: "btn", onclick: () => dlg.close() }, "Revenir au formulaire"))].filter(Boolean));
   montrer(dlg);
@@ -1493,7 +1526,7 @@ function ouvrirDoublon(m) {
 
 $("form").addEventListener("submit", async e => {
   e.preventDefault();
-  const err = m => { $("err").textContent = m; $("err").hidden = false; };
+  const err = m => { $("err").textContent = tr(m); $("err").hidden = false; };
   const txt = k => $("f-" + k).value.trim();
   const nom = txt("nom");
   if (!nom) return err("Donnez un nom au vin pour l'enregistrer.");
@@ -1508,7 +1541,7 @@ $("form").addEventListener("submit", async e => {
     boireDe: de, boireA: a, note: entier("f-note") || 0, commentaire: txt("commentaire"),
   };
   const total = Math.max(0, entier("f-total") ?? 0);
-  if (editId) { const old = vins.find(v => v.id === editId), pl = old ? places(old).length : 0; if (total < pl) return err(`${pl} bouteille${pl > 1 ? "s" : ""} de ce vin ${pl > 1 ? "sont rangées" : "est rangée"} sur le plan. Pour en avoir moins, sortez-les depuis le plan.`); }
+  if (editId) { const old = vins.find(v => v.id === editId), pl = old ? places(old).length : 0; if (total < pl) return err(tx("{n} bouteille de ce vin est rangée sur le plan. Pour en avoir moins, sortez-les depuis le plan.|{n} bouteilles de ce vin sont rangées sur le plan. Pour en avoir moins, sortez-les depuis le plan.", { n: pl })); }
   $("save").disabled = true;
   const ajout = editId ? total - qte(vins.find(v => v.id === editId) || {}) : Math.max(1, total);
   if (ajout > 0 && !(await quota(ajout))) { $("save").disabled = false; return; }
@@ -1531,7 +1564,7 @@ $("form").addEventListener("submit", async e => {
       forcerNouveau = false;
       if (meme) { $("save").disabled = false; return ouvrirDoublon(meme); }
       cible = await createVin({ ...champs, ...(conseilsNew || {}), places: formSlot ? [formSlot] : [], vrac: formSlot ? n - 1 : n, bues: 0, creeLe: Date.now(), ajouts: [{ le: Date.now(), n }] });
-      toast(formSlot ? `Rangée : ${slotLabel(formSlot)}.` : "Vin ajouté, pas encore rangé. Placez-le depuis le plan.");
+      toast(formSlot ? tx("Rangée : {lieu}.", { lieu: slotLabel(formSlot) }) : "Vin ajouté, pas encore rangé. Placez-le depuis le plan.");
     }
     if (photoNew && cible) await savePhoto(cible, photoNew).catch(() => toast("Le vin est enregistré, mais pas la photo. Réessayez depuis la fiche."));
     if (scanCtl) scanCtl.abort();
@@ -1540,7 +1573,7 @@ $("form").addEventListener("submit", async e => {
 });
 $("cancel").addEventListener("click", () => { if (scanCtl) scanCtl.abort(); $("dlg").close(); });
 $("del").addEventListener("click", async () => {
-  if (!delArmed) { delArmed = true; $("del").textContent = "Confirmer : supprimer ce vin (le suivi garde ses sorties)"; return; }
+  if (!delArmed) { delArmed = true; $("del").textContent = tr("Confirmer : supprimer ce vin (le suivi garde ses sorties)"); return; }
   try { await deleteVin(editId); $("dlg").close(); toast("Vin supprimé."); } catch (e) { fail(e); }
 });
 
@@ -1553,7 +1586,7 @@ function conseilsDe(d) {
 }
 async function demanderConseils(id, btn, ecraser) {   // ecraser : { fenetre, prix } pour remplacer les valeurs déjà présentes
   const v = vins.find(x => x.id === id); if (!v || !sample) return;
-  if (btn) { btn.disabled = true; btn.textContent = "Rédaction en cours… une dizaine de secondes"; }
+  if (btn) { btn.disabled = true; btn.textContent = tr("Rédaction en cours… une dizaine de secondes"); }
   try {
     const fiche = { nom: v.nom, domaine: v.domaine, appellation: v.appellation, region: v.region, pays: v.pays, couleur: COULEURS[v.couleur], millesime: v.millesime || null, cepages: v.cepages, contenance_cl: contDe(v) };
     const d = await sample.json(`Tu es sommelier. Voici un vin (JSON) : ${JSON.stringify(fiche).slice(0, 1500)}\nNous sommes en ${AN}. Réponds UNIQUEMENT avec un objet JSON de cette forme : {"boireDe": 2024, "boireA": 2032, "apogee": "2027 – 2030", "gout": "…", "service": "…", "plats": ["…"], "recettes": ["…"], "prixActuel": 25}. Écris en français. "prixActuel" : ton estimation du prix de vente actuel en France, en euros, pour UNE bouteille de ce vin, dans ce millésime et dans la contenance indiquée (un magnum vaut plus du double d'une bouteille) (nombre entier, null si tu n'en as aucune idée fiable). "boireDe" et "boireA" : années de la fenêtre de dégustation (null si le millésime est inconnu). ${REGLES_CONSEILS}`, { cache: false });
@@ -1567,7 +1600,7 @@ async function demanderConseils(id, btn, ecraser) {   // ecraser : { fenetre, pr
     if ($("viewDlg").open && vueId === id) voirFiche(id);
     return true;
   } catch (e) {
-    const c = e && e.code; if (btn) { btn.disabled = false; btn.textContent = "Réessayer"; }
+    const c = e && e.code; if (btn) { btn.disabled = false; btn.textContent = tr("Réessayer"); }
     toast(c === "rate_limited" ? SCAN_ERR.rate_limited : c === "not_granted" ? "L'autorisation demandée a été refusée : l'application ne peut pas faire cette estimation." : "Les conseils n'ont pas pu être rédigés. Réessayez.");
   }
 }
@@ -1591,7 +1624,7 @@ $("scanFile").addEventListener("change", async e => {
   const file = e.target.files && e.target.files[0]; e.target.value = "";
   if (!file) return;
   if (!$("dlg").open) ouvrirFiche(null, null);
-  const msg = (t, bad) => { $("scanMsg").textContent = t; $("scanMsg").className = bad ? "err" : ""; };
+  const msg = (t, bad) => { $("scanMsg").textContent = tr(t); $("scanMsg").className = bad ? "err" : ""; };
   let ph = await reduire(file).catch(() => null);
   const sansScan = editId || !canScan || !sample;
   if (ph && sansScan) ph = await portrait(ph);
@@ -1619,7 +1652,7 @@ $("scanFile").addEventListener("change", async e => {
       const dj = doublonDe({ nom: $("f-nom").value, domaine: $("f-domaine").value, millesime: entier("f-millesime"), couleur: $("f-couleur").value, contenance: parseFloat($("f-contenance").value) });
       const pe = Number(d.prixActuel); $("f-prixActuel").value = isFinite(pe) && pe > 0 && pe < 100000 ? String(Math.round(pe)) : "";
       msg(d.confiance === "basse" ? "Fiche remplie, mais l'étiquette était difficile à lire. Relisez bien avant d'enregistrer." : "Fiche remplie d'après l'étiquette. Vérifiez puis enregistrez. La fenêtre de dégustation et le prix actuel sont des estimations.");
-      if (dj) { msg(`Ce vin semble déjà référencé : « ${titre(dj)} ».`); ouvrirDoublon(dj); }
+      if (dj) { msg(tx("Ce vin semble déjà référencé : « {vin} ».", { vin: titre(dj) })); ouvrirDoublon(dj); }
     }
   } catch (er) {
     const c = er && er.code;
@@ -1631,7 +1664,7 @@ $("scanFile").addEventListener("change", async e => {
   }
   if (scanCtl === ctl) scanCtl = null;
   $("attente").hidden = true;
-  $("scanBtn").hidden = false; $("scanBtn").textContent = "Reprendre la photo"; $("scanStop").hidden = true; $("save").disabled = false;
+  $("scanBtn").hidden = false; $("scanBtn").textContent = tr("Reprendre la photo"); $("scanStop").hidden = true; $("save").disabled = false;
 });
 
 /* ---------- sortie d'une bouteille ---------- */
@@ -1646,15 +1679,15 @@ function majSortie() {
   const types = out.mode === "edit" ? ["bue", "offerte", "vendue", "retiree"] : ["bue", "offerte", "vendue", "retiree", "test"];
   const lib = { ...SORTIES, test: "C'était un test" };
   $("outTypes").replaceChildren(...types.map(t => h("button", { type: "button", class: "chip", "aria-pressed": String(out.type === t), onclick: () => { out.type = t; majSortie(); } }, lib[t])));
-  $("outHint").textContent = HINT[out.type];
+  $("outHint").textContent = tr(HINT[out.type]);
   $("outNoteL").hidden = out.type !== "bue"; $("outComL").hidden = out.type === "test";
-  $("o-com").placeholder = out.type === "vendue" ? "À qui, à quel prix" : out.type === "offerte" ? "À qui, à quelle occasion" : out.type === "bue" ? "Avec qui, avec quel plat, vos impressions" : "Ce qui s'est passé";
+  $("o-com").placeholder = tr(out.type === "vendue" ? "À qui, à quel prix" : out.type === "offerte" ? "À qui, à quelle occasion" : out.type === "bue" ? "Avec qui, avec quel plat, vos impressions" : "Ce qui s'est passé");
 }
 function sortirDepuisFiche(id) {   // depuis la fiche : s'il y a plusieurs bouteilles possibles, on demande laquelle
   const v = vins.find(x => x.id === id); if (!v) return;
   const cnt = {}, opts = []; rangees(v).forEach(p => cnt[p] = (cnt[p] || 0) + 1);
-  if (hors(v) > 0) opts.push({ v: "", l: `Une bouteille pas encore rangée (${hors(v)})` });
-  Object.keys(cnt).sort((a, b) => slotShort(a).localeCompare(slotShort(b), "fr", { numeric: true })).forEach(p => opts.push({ v: p, l: slotLabel(p) + (cnt[p] > 1 ? ` · ${cnt[p]} bouteilles` : "") }));
+  if (hors(v) > 0) opts.push({ v: "", l: tx("Une bouteille pas encore rangée ({n})", { n: hors(v) }) });
+  Object.keys(cnt).sort((a, b) => slotShort(a).localeCompare(slotShort(b), "fr", { numeric: true })).forEach(p => opts.push({ v: p, l: slotLabel(p) + (cnt[p] > 1 ? tx(" · {n} bouteilles", { n: cnt[p] }) : "") }));
   if (!opts.length) return toast("Il ne reste aucune bouteille de ce vin.");
   ouvrirSortie(id, opts[0].v || null, opts.length > 1 ? opts : null);
 }
@@ -1663,16 +1696,16 @@ function ouvrirSortie(vinId, slot, choix) {
   out = { mode: "new", vinId, slot, type: "bue" };
   $("outOuL").hidden = !choix;
   if (choix) $("o-ou").replaceChildren(...choix.map(o => h("option", { value: o.v }, o.l)));
-  $("outSub").textContent = choix ? `${qte(v)} bouteilles en cave` : slot ? slotLabel(slot) : "Bouteille pas encore rangée";
-  $("outTitle").textContent = `Sortir « ${titre(v)} »`;
+  $("outSub").textContent = tr(choix ? tx("{n} bouteille en cave|{n} bouteilles en cave", { n: qte(v) }) : slot ? slotLabel(slot) : "Bouteille pas encore rangée");
+  $("outTitle").textContent = tx("Sortir « {vin} »", { vin: titre(v) });
   $("o-note").value = String(num(v.note)); $("o-com").value = "";
   $("outErr").hidden = true; $("outOk").disabled = false; majSortie(); montrer($("outDlg"));
 }
 function modifierSortie(sid) {
   const x = sorties.find(y => y.id === sid); if (!x) return;
   out = { mode: "edit", sid, type: SORTIES[x.type] ? x.type : "bue" }; $("outOuL").hidden = true;
-  $("outSub").textContent = num(x.le) ? new Date(x.le).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";
-  $("outTitle").textContent = titre(x);
+  $("outSub").textContent = tr(num(x.le) ? new Date(x.le).toLocaleDateString(LOCALE(), { day: "numeric", month: "long", year: "numeric" }) : "");
+  $("outTitle").textContent = tr(titre(x));
   $("o-note").value = String(num(x.note)); $("o-com").value = typeof x.commentaire === "string" ? x.commentaire : "";
   $("outErr").hidden = true; $("outOk").disabled = false; majSortie(); montrer($("outDlg"));
 }
@@ -1697,10 +1730,10 @@ $("outForm").addEventListener("submit", async e => {
         const data = { vinId: v.id, type, le: Date.now(), note, commentaire, valeur: (type === "vendue" ? prixVente(v) : prixDe(v)) || null, nom: v.nom || "", domaine: v.domaine || "", appellation: v.appellation || "", region: v.region || "", couleur: v.couleur || "rouge", millesime: v.millesime || null };
         if (db) await P.sorties().add(data); else { sorties = [...sorties, { id: "s" + Date.now(), ...data }]; render(); }
       }
-      toast(type === "test" ? "Bouteille retirée, sans trace." : `« ${titre(v)} » : ${SORTIES[type].toLowerCase()}. À retrouver dans « Bues et offertes ».`);
+      toast(type === "test" ? "Bouteille retirée, sans trace." : `« ${titre(v)} » : ${SORTIES[type].toLowerCase()}. ` + tr("À retrouver dans « Sorties »."));
     }
     $("outDlg").close();
-  } catch (er) { $("outOk").disabled = false; $("outErr").textContent = "L'enregistrement a échoué. Réessayez."; $("outErr").hidden = false; }
+  } catch (er) { $("outOk").disabled = false; $("outErr").textContent = tr("L'enregistrement a échoué. Réessayez."); $("outErr").hidden = false; }
 });
 
 function renderSuivi() {
@@ -1714,7 +1747,7 @@ function renderSuivi() {
   const clic = (t, lab, L) => {
     const on = filtreSortie === t, d = stat(lab, [String(L.length), h("small", null, on ? "tout réafficher" : "les montrer")]);
     d.className = "clic"; d.setAttribute("role", "button"); d.tabIndex = 0; d.setAttribute("aria-pressed", String(on)); d.dataset.t = t;
-    d.setAttribute("aria-label", `${lab} : ${L.length}. ${on ? "Réafficher toutes les sorties" : "Ne montrer que celles-ci"}`);
+    d.setAttribute("aria-label", `${tr(lab)} : ${L.length}. ${tr(on ? "Réafficher toutes les sorties" : "Ne montrer que celles-ci")}`);
     const go = () => { filtreSortie = on ? "" : t; render(); const n = el.querySelector(`.clic[data-t="${t}"]`); if (n) n.focus({ preventScroll: true }); };
     d.addEventListener("click", go); d.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
     return d;
@@ -1723,21 +1756,21 @@ function renderSuivi() {
   const an = S.filter(x => num(x.le) && new Date(x.le).getFullYear() === AN && x.type !== "retiree");
   el.replaceChildren(
     h("dl", { class: "stats duo" }, clic("bue", "Bues", B), stat("Valeur bue", val(B) ? eur.format(val(B)) : "—"), clic("offerte", "Offertes", O), stat("Valeur offerte", val(O) ? eur.format(val(O)) : "—"), V.length || filtreSortie === "vendue" ? clic("vendue", "Vendues", V) : null, V.length ? stat("Total vendu", val(V) ? eur.format(val(V)) : "—") : null, R.length || filtreSortie === "retiree" ? clic("retiree", "Retirées", R) : null),
-    h("p", { class: "meta", style: "margin:14px 0 10px" }, `En ${AN} : ${an.length} bouteille${an.length > 1 ? "s" : ""} bue${an.length > 1 ? "s" : ""} ou offerte${an.length > 1 ? "s" : ""}${val(an) ? ", " + eur.format(val(an)) : ""}. La valeur est le prix connu le jour de la sortie.`),
-    h("ul", { class: "list" }, !vus.length ? h("li", { class: "empty" }, `Aucune bouteille ${SORTIES[filtreSortie].toLowerCase()} pour l'instant.`) : vus.map(x => {
+    h("p", { class: "meta", style: "margin:14px 0 10px" }, tx("En {an} : {n} bouteille bue ou offerte|En {an} : {n} bouteilles bues ou offertes", { an: AN, n: an.length }) + (val(an) ? ", " + eur.format(val(an)) : "") + ". " + tr("La valeur est le prix connu le jour de la sortie.")),
+    h("ul", { class: "list" }, !vus.length ? h("li", { class: "empty" }, tr({ bue: "Aucune bouteille bue pour l'instant.", offerte: "Aucune bouteille offerte pour l'instant.", vendue: "Aucune bouteille vendue pour l'instant.", retiree: "Aucune bouteille retirée pour l'instant." }[filtreSortie] || "Aucune sortie pour l'instant.")) : vus.map(x => {
       const d = num(x.le) ? new Date(x.le) : null, t = SORTIES[x.type] ? x.type : "retiree";
       let arme = false;
       return h("li", { class: "vin", c: x.couleur },
-        h("div", { class: "yr" }, d ? d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "—", h("small", null, d ? String(d.getFullYear()) : "")),
+        h("div", { class: "yr" }, d ? d.toLocaleDateString(LOCALE(), { day: "2-digit", month: "2-digit" }) : "—", h("small", null, d ? String(d.getFullYear()) : "")),
         h("div", null,
           h("div", { class: "nom" }, titre(x)),
           h("div", { class: "meta" }, [x.domaine, x.appellation, x.region].filter(y => typeof y === "string" && y).join(" · ")),
-          h("div", { class: "tags" }, h("span", { class: "pill " + t }, SORTIES[t]), num(x.note) ? h("span", { class: "stars", title: `${x.note} sur 5` }, "★".repeat(Math.min(5, x.note))) : null, num(x.valeur) ? h("span", null, eur.format(x.valeur)) : null),
+          h("div", { class: "tags" }, h("span", { class: "pill " + t }, SORTIES[t]), num(x.note) ? h("span", { class: "stars", title: tx("{n} sur 5", { n: x.note }) }, "★".repeat(Math.min(5, x.note))) : null, num(x.valeur) ? h("span", null, eur.format(x.valeur)) : null),
           typeof x.commentaire === "string" && x.commentaire ? h("div", { class: "meta", style: "margin-top:6px" }, x.commentaire) : null,
           canWrite && !(typeof x.commentaire === "string" && x.commentaire) ? h("button", { class: "link", onclick: () => { modifierSortie(x.id); $("o-com").focus(); } }, t === "bue" && !num(x.note) ? "Ajouter une note et un commentaire" : "Ajouter un commentaire") : null),
         canWrite ? h("div", { class: "side" },
           h("button", { class: "link", onclick: () => modifierSortie(x.id) }, t === "bue" && !num(x.note) ? "Noter" : "Modifier"),
-          h("button", { class: "link", onclick: async ev => { if (!arme) { arme = true; ev.target.textContent = "Confirmer"; return; } try { if (db) await P.sorties().doc(x.id).delete(); else { sorties = sorties.filter(y => y.id !== x.id); render(); } toast("Sortie effacée du suivi."); } catch (er) { fail(er); } } }, "Effacer")) : null);
+          h("button", { class: "link", onclick: async ev => { if (!arme) { arme = true; ev.target.textContent = tr("Confirmer"); return; } try { if (db) await P.sorties().doc(x.id).delete(); else { sorties = sorties.filter(y => y.id !== x.id); render(); } toast("Sortie effacée du suivi."); } catch (er) { fail(er); } } }, "Effacer")) : null);
     })));
 }
 
@@ -1758,7 +1791,7 @@ async function actualiserPrix() {
         await mutate(x.id, () => (ok ? { prixActuel: Math.round(pr), prixMaj: now } : { prixMaj: now })); if (ok) n++;
       }
     }
-    toast(n ? `${n} prix estimé${n > 1 ? "s" : ""} par l'application, de mémoire et sans recherche en ligne. Corrigez-les dans la fiche si besoin.` : "Aucun prix n'a pu être estimé.");
+    toast(n ? tx("{n} prix estimé par l'application, de mémoire et sans recherche en ligne. Corrigez-le dans la fiche si besoin.|{n} prix estimés par l'application, de mémoire et sans recherche en ligne. Corrigez-les dans la fiche si besoin.", { n }) : "Aucun prix n'a pu être estimé.");
   } catch (e) {
     const c = e && e.code;
     toast(c === "rate_limited" ? SCAN_ERR.rate_limited : c === "not_granted" ? "L'autorisation demandée a été refusée : l'application ne peut pas faire cette estimation." : "L'estimation des prix a échoué. Réessayez.");
@@ -1770,8 +1803,8 @@ async function actualiserPrix() {
 let draft = [], cur = null, estNouveau = false, cfgBusy = false;
 const COURT = { cases: "Casier", etagere: "Étagère murale", croisillon: "Croisillon", croix4: "Croisillon simple", tiroir: "Tiroirs" };
 const resume = k => {
-  const t = typ(k), dims = grand12(k) ? `${k.rangs} box, ${placesDe(k)} places` : croix(k) ? `${k.rangs} box de ${treillis(k).comps.length} × ${cap(k)}` : typ(k) === "tiroir" ? `${k.rangs} × ${k.colonnes}, ${cap(k)} bouteilles chacun, ${baseDe(k)} à la base` : multi(k) ? `${k.rangs} × ${k.colonnes}, ${cap(k)} bouteilles chacun` : `${k.rangs} × ${k.colonnes}`;
-  return `${COURT[t]} · ${dims} · ${zone(k) === "sol" ? "Au sol, " + POS[pos(k)] : ZONES[zone(k)] + (va(k) === "bas" ? ", en bas" : ", en haut")}`;
+  const t = typ(k), dims = grand12(k) ? tx("{n} box, {p} places", { n: k.rangs, p: placesDe(k) }) : croix(k) ? tx("{n} box de {c} × {cap}", { n: k.rangs, c: treillis(k).comps.length, cap: cap(k) }) : typ(k) === "tiroir" ? `${k.rangs} × ${k.colonnes}, ` + tx("{cap} bouteilles chacun, {b} à la base", { cap: cap(k), b: baseDe(k) }) : multi(k) ? `${k.rangs} × ${k.colonnes}, ` + tx("{cap} bouteilles chacun", { cap: cap(k) }) : `${k.rangs} × ${k.colonnes}`;
+  return `${COURT[t]} · ${dims} · ${zone(k) === "sol" ? tr("Au sol") + ", " + POS[pos(k)] : ZONES[zone(k)] + ", " + tr(va(k) === "bas" ? "en bas" : "en haut")}`;
 };
 function ouvrirCfg() { $("p-nom").value = (config && typeof config.nom === "string" && config.nom) || ""; $("caveDel").hidden = !db || caves.length < 2; draft = casiers().map(k => ({ ...k, type: typ(k), zone: zone(k), pos: pos(k), cap: cap(k) })); cur = null; estNouveau = false; rowsCfg(); montrer($("cfgDlg")); }
 function lire() {   // l'éditeur ouvert, relu depuis ses champs
@@ -1800,7 +1833,7 @@ function editeur() {
   const relire = () => { cur = lire(); rowsCfg(); };
   let arme = false;
   return h("div", { class: "kblock edit" },
-    h("h3", null, estNouveau ? "Nouveau rangement" : `Modifier « ${draft.find(d => d.id === k.id)?.nom || k.nom} »`),
+    h("h3", null, estNouveau ? "Nouveau rangement" : tx("Modifier « {nom} »", { nom: draft.find(d => d.id === k.id)?.nom || k.nom })),
     h("label", { class: "lab wide" }, h("span", null, "Nom"), h("input", { id: "e-nom", value: k.nom ?? "", maxlength: "30" })),
     h("label", { class: "lab wide" }, h("span", null, "Type"), h("select", { id: "e-t", onchange: relire }, Object.entries(TYPES).map(([v, l]) => h("option", { value: v, selected: v === typ(k) }, l)))),
     h("label", { class: "lab wide" }, h("span", null, "Où dans la cave"), h("select", { id: "e-z", onchange: relire }, Object.entries(ZONES).map(([v, l]) => h("option", { value: v, selected: v === zone(k) }, l)))),
@@ -1815,7 +1848,7 @@ function editeur() {
     h("div", { class: "wide row" },
       h("button", { type: "submit", class: "btn small primary" }, "Valider"),
       h("button", { type: "button", class: "btn small", onclick: () => { cur = null; estNouveau = false; rowsCfg(); } }, "Annuler"),
-      !estNouveau && draft.length > 1 ? h("button", { type: "button", class: "btn small danger", onclick: e => { if (!arme) { arme = true; e.target.textContent = "Confirmer le retrait"; return; } const id = k.id; appliquer(d => d.filter(y => y.id !== id), "Rangement retiré. Ses bouteilles sont à ranger de nouveau."); } }, "Retirer") : null));
+      !estNouveau && draft.length > 1 ? h("button", { type: "button", class: "btn small danger", onclick: e => { if (!arme) { arme = true; e.target.textContent = tr("Confirmer le retrait"); return; } const id = k.id; appliquer(d => d.filter(y => y.id !== id), "Rangement retiré. Ses bouteilles sont à ranger de nouveau."); } }, "Retirer") : null));
 }
 function rowsCfg() {
   const out = draft.map((k, i) => {
@@ -1824,9 +1857,9 @@ function rowsCfg() {
     const swap = d => () => appliquer(L => { const a = [...L], j = voisin(d); if (j < 0) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
     const rang = draft.filter(x => groupe(x) === groupe(k)).indexOf(k) + 1, nb = draft.filter(x => groupe(x) === groupe(k)).length;
     return h("div", { class: "krow" },
-      h("div", null, h("b", null, String(k.nom)), h("span", { class: "meta" }, resume(k) + (nb > 1 ? ` · ${rang === 1 ? "1ᵉʳ" : rang + "ᵉ"} sur ${nb}` : ""))),
-      h("button", { type: "button", class: "mini", "aria-label": `Monter ${k.nom}`, title: "Monter", disabled: !!cur || voisin(-1) < 0, onclick: swap(-1) }, "↑"),
-      h("button", { type: "button", class: "mini", "aria-label": `Descendre ${k.nom}`, title: "Descendre", disabled: !!cur || voisin(1) < 0, onclick: swap(1) }, "↓"),
+      h("div", null, h("b", null, String(k.nom)), h("span", { class: "meta" }, resume(k) + (nb > 1 ? " · " + tx(rang === 1 ? "1ᵉʳ sur {nb}" : "{r}ᵉ sur {nb}", { r: rang, nb }) : ""))),
+      h("button", { type: "button", class: "mini", "aria-label": tx("Monter {nom}", { nom: k.nom }), title: "Monter", disabled: !!cur || voisin(-1) < 0, onclick: swap(-1) }, "↑"),
+      h("button", { type: "button", class: "mini", "aria-label": tx("Descendre {nom}", { nom: k.nom }), title: "Descendre", disabled: !!cur || voisin(1) < 0, onclick: swap(1) }, "↓"),
       h("button", { type: "button", class: "btn small", disabled: !!cur, onclick: () => { cur = { ...k }; estNouveau = false; rowsCfg(); } }, "Éditer"));
   });
   if (cur && estNouveau) out.push(editeur());
@@ -1900,13 +1933,13 @@ function rendreReorg() {
     const par = new Map();
     for (const key of new Set(slotsDe(k))) for (const v of (occVue[key] || [])) { const r = regionStd(v), a = appDe(v) || "Sans appellation"; if (!par.has(r)) par.set(r, new Map()); par.get(r).set(a, (par.get(r).get(a) || 0) + 1); }
     const fixe = o.bientot === k.id ? "à boire bientôt" : o.fixes[k.id] || "";
-    return h("div", { class: "rk" }, h("b", null, k.nom + (fixe ? ` · réservé : ${fixe}` : "")),
+    return h("div", { class: "rk" }, h("b", null, k.nom + (fixe ? " · " + tx("réservé : {r}", { r: fixe }) : "")),
       h("div", { class: "vign" }, dessin(k, occVue, true).el),
       par.size ? [...par].map(([r, apps]) => h("div", { class: "rapp" }, h("i", { c: P2.coul[r] }), h("span", null, h("b", null, `${r} (${[...apps.values()].reduce((a, b) => a + b, 0)})`), " : " + [...apps].map(([a, c]) => `${a} ${c}`).join(", ")))) : h("span", { class: "meta" }, "Vide"));
   });
   const opts = h("details", { ontoggle: e => { reorgOuvert = e.target.open; } }, h("summary", null, "Réglages du rangement"),
     h("div", { class: "stack", style: "margin-top:10px" },
-      ks.map(k => { const sl = h("select", null, h("option", { value: "" }, "Automatique"), P2.regs.map(r => h("option", { value: r }, "Réservé : " + r))); sl.value = P2.regs.includes(o.fixes[k.id]) ? o.fixes[k.id] : ""; sl.disabled = o.bientot === k.id; sl.addEventListener("change", () => regle(x => ({ ...x, fixes: { ...x.fixes, [k.id]: sl.value } }))); return h("label", { class: "lab" }, k.nom, sl); }),
+      ks.map(k => { const sl = h("select", null, h("option", { value: "" }, "Automatique"), P2.regs.map(r => h("option", { value: r }, tx("Réservé : {r}", { r })))); sl.value = P2.regs.includes(o.fixes[k.id]) ? o.fixes[k.id] : ""; sl.disabled = o.bientot === k.id; sl.addEventListener("change", () => regle(x => ({ ...x, fixes: { ...x.fixes, [k.id]: sl.value } }))); return h("label", { class: "lab" }, k.nom, sl); }),
       (() => { const sl = h("select", null, h("option", { value: "" }, "Aucun"), ks.map(k => h("option", { value: k.id }, k.nom))); sl.value = ks.some(k => k.id === o.bientot) ? o.bientot : ""; sl.addEventListener("change", () => regle(x => ({ ...x, bientot: sl.value }))); return h("label", { class: "lab" }, "Rangement des vins à boire bientôt", sl); })(),
       h("p", { class: "meta" }, "Un rangement réservé reçoit d'abord les vins de sa région ; s'il reste de la place, les autres vins la complètent.")));
   if (reorgOuvert) opts.open = true;
@@ -1929,13 +1962,13 @@ function rendreReorg() {
     h("h2", null, "Réorganiser la cave"),
     P2.total === 0 ? h("p", null, "Aucune bouteille en cave pour l'instant.")
       : n === 0 ? h("p", { class: "rsum" }, "La cave est déjà rangée selon ce plan : aucune bouteille à déplacer.")
-      : h("p", { class: "rsum" }, `${pl(n, "bouteille")} à déplacer sur ${P2.total}, ${P2.reste} déjà à la bonne place.`),
-    P2.sansPlace ? h("p", { class: "meta" }, `${pl(P2.sansPlace, "bouteille")} sans emplacement : la cave n'a pas assez de places.`) : null,
+      : h("p", { class: "rsum" }, tx("{n} bouteille à déplacer sur {total}, {reste} déjà à la bonne place.|{n} bouteilles à déplacer sur {total}, {reste} déjà à la bonne place.", { n, total: P2.total, reste: P2.reste })),
+    P2.sansPlace ? h("p", { class: "meta" }, tx("{n} bouteille sans emplacement : la cave n'a pas assez de places.|{n} bouteilles sans emplacement : la cave n'a pas assez de places.", { n: P2.sansPlace })) : null,
     P2.total ? opts : null,
     P2.total ? h("div", { class: "seg", role: "group", "aria-label": "Aperçu" }, [["avant", "Aujourd'hui"], ["apres", "Après"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(reorgVue === k), onclick: () => { reorgVue = k; rendreReorg(); } }, l))) : null,
     P2.total ? h("div", { class: "rleg" }, P2.regs.map(r => h("span", null, h("i", { c: P2.coul[r] }), r))) : null,
     ...(P2.total ? apercu : []),
-    n ? h("div", { class: "psec" }, `Déplacements à faire en cave (${P2.etapes.length})`) : null,
+    n ? h("div", { class: "psec" }, tx("Déplacements à faire en cave ({n})", { n: P2.etapes.length })) : null,
     n ? h("p", { class: "meta" }, "Déplacez la bouteille, puis touchez « Fait » : l'emplacement est mis à jour aussitôt. Vous pouvez vous arrêter et reprendre plus tard. Les lignes grisées attendent qu'une place se libère.") : null,
     ...(n ? lignes : []),
     h("div", { class: "foot" }, n && canWrite ? h("button", { class: "btn", disabled: reorgBusy, onclick: tout }, reorgArme ? "Confirmer : tout est déjà déplacé" : "Tout marquer comme fait") : null,
@@ -1959,18 +1992,18 @@ function offres(o) {
   const carte = p => {
     const P = C.PLANS[p], petit = P.limite < apres, actuel = !gratuit && o.a.plan === p;
     const b = h("button", { type: "button", class: "btn" + (p === conseille && !actuel ? " primary" : ""), disabled: petit || actuel, onclick: async () => {
-      b.disabled = true; b.textContent = "Ouverture du paiement…";
-      try { if (!(await profilPourPaiement())) { b.disabled = false; b.textContent = "Choisir"; return; } await C.payer(p); } catch (e) { b.disabled = false; b.textContent = "Choisir"; toast("Le paiement n'a pas pu s'ouvrir. Vérifiez votre connexion et réessayez."); }
+      b.disabled = true; b.textContent = tr("Ouverture du paiement…");
+      try { if (!(await profilPourPaiement())) { b.disabled = false; b.textContent = tr("Choisir"); return; } await C.payer(p); } catch (e) { b.disabled = false; b.textContent = tr("Choisir"); toast("Le paiement n'a pas pu s'ouvrir. Vérifiez votre connexion et réessayez."); }
     } }, actuel ? "Votre formule" : petit ? "Trop petite" : "Choisir");
     return h("div", { class: "plan" + (p === conseille && !actuel ? " reco" : "") },
       p === conseille && !actuel ? h("span", { class: "plan-reco" }, "Conseillée pour vous") : null,
       h("b", null, P.nom), h("div", { class: "plan-prix" }, P.prix, h("small", null, " / an")),
-      h("span", { class: "meta" }, P.limite >= 1e9 ? "Bouteilles illimitées" : `Jusqu'à ${P.limite} bouteilles`), b);
+      h("span", { class: "meta" }, P.limite >= 1e9 ? "Bouteilles illimitées" : tx("Jusqu'à {n} bouteilles", { n: P.limite })), b);
   };
   $("slotBody").replaceChildren(...[
-    h("p", { class: "meta" }, `${o.total} bouteille${o.total > 1 ? "s" : ""} dans vos caves`),
+    h("p", { class: "meta" }, tx("{n} bouteille dans vos caves|{n} bouteilles dans vos caves", { n: o.total })),
     h("h2", null, o.besoin ? "Il vous faut plus de place" : "Les formules"),
-    h("p", null, gratuit ? `La version gratuite accueille jusqu'à ${C.GRATUIT} bouteilles.${o.besoin ? ` Pour en ajouter ${o.besoin > 1 ? o.besoin : "une"} de plus, choisissez une formule annuelle :` : ""}` : `Votre formule actuelle va jusqu'à ${C.limite(o.a) >= 1e9 ? "un nombre illimité de" : C.limite(o.a)} bouteilles.${o.besoin ? " Pour aller au-delà, passez à la formule supérieure :" : ""}`),
+    h("p", null, gratuit ? tx("La version gratuite accueille jusqu'à {n} bouteilles.", { n: C.GRATUIT }) + (o.besoin ? " " + tx("Pour en ajouter une de plus, choisissez une formule annuelle :|Pour en ajouter {n} de plus, choisissez une formule annuelle :", { n: o.besoin }) : "") : (C.limite(o.a) >= 1e9 ? tr("Votre formule actuelle accueille un nombre illimité de bouteilles.") : tx("Votre formule actuelle va jusqu'à {n} bouteilles.", { n: C.limite(o.a) })) + (o.besoin ? " " + tr("Pour aller au-delà, passez à la formule supérieure :") : "")),
     h("div", { class: "plans" }, Object.keys(C.PLANS).map(carte)),
     h("p", { class: "meta" }, "Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule."),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => dlg.close() }, "Plus tard")))].filter(Boolean));
@@ -1980,15 +2013,15 @@ async function majAbonnement() {
   const C = C_(), card = $("aboCard"); card.hidden = !C; if (!C) return;
   const [a, t] = await Promise.all([C.etat(), C.total().catch(() => null)]);
   const lim = C.limite(a), btns = [];
-  const pTxt = t == null ? "" : ` · ${t} / ${lim >= 1e9 ? "∞" : lim} bouteilles`;
-  if (a.statut === "inconnu") $("p-abo").textContent = "Impossible de vérifier votre formule pour le moment (pas de connexion ?).";
-  else if (a.statut === "offert") $("p-abo").textContent = `Accès complet offert${pTxt}.`;
+  const pTxt = t == null ? "" : ` · ${t} / ${lim >= 1e9 ? "∞" : lim} ` + tr("bouteilles");
+  if (a.statut === "inconnu") $("p-abo").textContent = tr("Impossible de vérifier votre formule pour le moment (pas de connexion ?).");
+  else if (a.statut === "offert") $("p-abo").textContent = tr("Accès complet offert") + pTxt + ".";
   else if (C.actif(a)) {
     const P = C.PLANS[a.plan];
-    $("p-abo").textContent = `Formule ${P.nom}, ${P.prix} par an${pTxt}.${a.fin ? (a.annule ? ` Résiliée : elle reste active jusqu'au ${new Date(a.fin).toLocaleDateString("fr-FR")}.` : ` Renouvellement le ${new Date(a.fin).toLocaleDateString("fr-FR")}.`) : ""}${a.statut === "past_due" ? " Le dernier paiement a échoué : mettez à jour votre carte." : ""}`;
+    $("p-abo").textContent = tx("Formule {nom}, {prix} par an", { nom: P.nom, prix: P.prix }) + pTxt + "." + (a.fin ? " " + tx(a.annule ? "Résiliée : elle reste active jusqu'au {date}." : "Renouvellement le {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "") + (a.statut === "past_due" ? " " + tr("Le dernier paiement a échoué : mettez à jour votre carte.") : "");
     btns.push(h("button", { class: "btn", onclick: async e => { e.target.disabled = true; try { await C.portail(); } catch (er) { e.target.disabled = false; toast("L'espace abonnement n'a pas pu s'ouvrir. Réessayez."); } } }, "Gérer mon abonnement"));
   } else {
-    $("p-abo").textContent = `Version gratuite${pTxt.replace(String(lim) + " bouteilles", `${lim} bouteilles`)}.${t != null && t >= lim ? " Limite atteinte : vous pouvez consulter et sortir vos bouteilles, mais plus en ajouter." : ""}`;
+    $("p-abo").textContent = tr("Version gratuite") + pTxt + "." + (t != null && t >= lim ? " " + tr("Limite atteinte : vous pouvez consulter et sortir vos bouteilles, mais plus en ajouter.") : "");
     if (a.client) btns.push(h("button", { class: "btn", onclick: async e => { e.target.disabled = true; try { await C.portail(); } catch (er) { e.target.disabled = false; } } }, "Mes factures"));
   }
   if (a.statut !== "offert" && a.statut !== "inconnu" && (!C.actif(a) || a.plan !== "illimite")) btns.unshift(h("button", { class: "btn primary", onclick: async () => offres({ total: t || 0, a }) }, C.actif(a) ? "Changer de formule" : "Voir les formules"));
@@ -2000,7 +2033,7 @@ async function retourPaiement() {   // de retour de la page Stripe
   const C = C_(); if (!C) return;
   if (q !== "merci") return toast("Paiement annulé : rien n'a été débité.");
   toast("Merci ! Activation de votre abonnement…");
-  for (let i = 0; i < 12; i++) { const a = await C.etat(true); if (C.actif(a)) { toast(`Abonnement ${C.PLANS[a.plan].nom} activé. Bonne cave !`); if (tab === "param") majAbonnement(); return; } await new Promise(r => setTimeout(r, 2500)); }
+  for (let i = 0; i < 12; i++) { const a = await C.etat(true); if (C.actif(a)) { toast(tx("Abonnement {nom} activé. Bonne cave !", { nom: C.PLANS[a.plan].nom })); if (tab === "param") majAbonnement(); return; } await new Promise(r => setTimeout(r, 2500)); }
   toast("Paiement reçu. L'activation peut prendre une minute : rouvrez Réglages, Abonnement, un peu plus tard.");
 }
 /* ---------- profil de l'utilisateur : facultatif, sauf ce qu'exige un abonnement ---------- */
@@ -2013,8 +2046,8 @@ const profilComplet = p => !!(p && p.prenom && p.nom && PAYS[p.pays] && p.majeur
 async function majProfil() {
   const card = $("profilCard"); card.hidden = !db; if (!db) return;
   const p = await lireProfil(), nom = [p.prenom, p.nom].filter(Boolean).join(" ");
-  $("p-profil").textContent = nom ? [nom, p.ville && PAYS[p.pays] ? `${p.ville}, ${PAYS[p.pays]}` : PAYS[p.pays], AMATEUR[p.amateur]].filter(Boolean).join(" · ") : "Profil non renseigné.";
-  $("profilBtn").textContent = nom ? "Modifier mon profil" : "Compléter mon profil";
+  $("p-profil").textContent = tr(nom ? [nom, p.ville && PAYS[p.pays] ? `${p.ville}, ${PAYS[p.pays]}` : PAYS[p.pays], AMATEUR[p.amateur]].filter(Boolean).join(" · ") : "Profil non renseigné.");
+  $("profilBtn").textContent = tr(nom ? "Modifier mon profil" : "Compléter mon profil");
 }
 function ouvrirProfil(pourPaiement) {
   return new Promise(async fin => {
@@ -2027,21 +2060,21 @@ function ouvrirProfil(pourPaiement) {
     const finir = ok => { if (fait) return; fait = true; dlg.close(); fin(ok); };
     const enreg = async () => {
       const v = id => $("pf-" + id).value.trim(), np = { prenom: v("prenom").slice(0, 60), nom: v("nom").slice(0, 60), tel: v("tel").slice(0, 30), adresse: v("adresse").slice(0, 120), cp: v("cp").slice(0, 12), ville: v("ville").slice(0, 60), pays: PAYS[v("pays")] ? v("pays") : "", amateur: AMATEUR[v("amateur")] ? v("amateur") : "", majeur: $("pf-majeur").checked, nouvelles: $("pf-nouvelles").checked, maj: Date.now() };
-      if (pourPaiement && !profilComplet(np)) { err.textContent = "Pour vous abonner, indiquez votre prénom, votre nom et votre pays, et confirmez avoir 18 ans ou plus."; err.hidden = false; return; }
-      if (np.tel && !/^[+0-9 ().-]{6,30}$/.test(np.tel)) { err.textContent = "Ce numéro de téléphone n'a pas l'air valide."; err.hidden = false; return; }
-      try { await profilRef().set(np); profil = np; toast("Profil enregistré."); majProfil().catch(() => {}); finir(true); } catch (e) { err.textContent = "L'enregistrement a échoué. Réessayez."; err.hidden = false; }
+      if (pourPaiement && !profilComplet(np)) { err.textContent = tr("Pour vous abonner, indiquez votre prénom, votre nom et votre pays, et confirmez avoir 18 ans ou plus."); err.hidden = false; return; }
+      if (np.tel && !/^[+0-9 ().-]{6,30}$/.test(np.tel)) { err.textContent = tr("Ce numéro de téléphone n'a pas l'air valide."); err.hidden = false; return; }
+      try { await profilRef().set(np); profil = np; toast("Profil enregistré."); majProfil().catch(() => {}); finir(true); } catch (e) { err.textContent = tr("L'enregistrement a échoué. Réessayez."); err.hidden = false; }
     };
     $("slotBody").replaceChildren(...[
       h("p", { class: "meta" }, pourPaiement ? "Avant le paiement" : "Facultatif, sauf pour un abonnement"),
       h("h2", null, pourPaiement ? "Quelques informations" : "Mon profil"),
       pourPaiement ? h("p", null, "Elles figureront sur vos factures. Vous pourrez les modifier à tout moment dans Réglages.") : null,
       h("div", { class: "grid" },
-        champ("prenom", "Prénom" + (pourPaiement ? " *" : ""), p.prenom, { ac: "given-name" }), champ("nom", "Nom" + (pourPaiement ? " *" : ""), p.nom, { ac: "family-name" }),
+        champ("prenom", tr("Prénom") + (pourPaiement ? " *" : ""), p.prenom, { ac: "given-name" }), champ("nom", tr("Nom de famille") + (pourPaiement ? " *" : ""), p.nom, { ac: "family-name" }),
         champ("adresse", "Adresse", p.adresse, { wide: true, ac: "street-address" }),
         champ("cp", "Code postal", p.cp, { ac: "postal-code", im: "numeric" }), champ("ville", "Ville", p.ville, { ac: "address-level2" }),
-        choix("pays", "Pays" + (pourPaiement ? " *" : ""), PAYS, p.pays), champ("tel", "Téléphone", p.tel, { ac: "tel", im: "tel" }),
+        choix("pays", tr("Pays") + (pourPaiement ? " *" : ""), PAYS, p.pays), champ("tel", "Téléphone", p.tel, { ac: "tel", im: "tel" }),
         choix("amateur", "Vous êtes plutôt", AMATEUR, p.amateur, "Je préfère ne pas dire"),
-        coche("majeur", "J'ai 18 ans ou plus" + (pourPaiement ? " *" : ""), p.majeur),
+        coche("majeur", tr("J'ai 18 ans ou plus") + (pourPaiement ? " *" : ""), p.majeur),
         coche("nouvelles", "Recevoir par e-mail les nouveautés de Wineracker (quelques fois par an, désinscription à tout moment dans Réglages)", p.nouvelles)),
       err,
       h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => finir(false) }, "Annuler"), h("button", { type: "button", class: "btn primary", onclick: enreg }, pourPaiement ? "Continuer vers le paiement" : "Enregistrer")))].filter(Boolean));
@@ -2051,6 +2084,11 @@ function ouvrirProfil(pourPaiement) {
 }
 async function profilPourPaiement() { return profilComplet(await lireProfil()) || ouvrirProfil(true); }
 $("profilBtn").addEventListener("click", () => ouvrirProfil(false));
+if (window.changerLangue || window.__pret) {   // choix de la langue (version hébergée)
+  const sl = $("langSel");
+  sl.replaceChildren(...Object.entries(LANGUES).map(([k, l]) => h("option", { value: k }, l)));
+  sl.addEventListener("change", () => { if (window.changerLangue && sl.value !== LANG) window.changerLangue(sl.value); });
+}
 /* ---------- plan de vente : bouteilles proposées et catalogue ---------- */
 function ouvrirVente(id) {
   const v = vins.find(x => x.id === id); if (!v) return;
@@ -2060,14 +2098,14 @@ function ouvrirVente(id) {
   const err = h("p", { class: "err", hidden: true });
   const ok = async () => {
     const t = px.value.trim(), p = parseFloat(t.replace(",", ".").replace(/[^\d.]/g, ""));
-    if (t && !(isFinite(p) && p > 0 && p < 1e6)) { err.textContent = "Le prix n'est pas lisible. Exemple : 45 ou 45,50."; err.hidden = false; return; }
+    if (t && !(isFinite(p) && p > 0 && p < 1e6)) { err.textContent = tr("Le prix n'est pas lisible. Exemple : 45 ou 45,50."); err.hidden = false; return; }
     const n = parseInt(nb.value, 10) || 1;
-    try { await mutate(id, () => ({ venteN: n, ventePrix: t ? Math.round(p * 100) / 100 : null })); dlg.close(); toast(`${n} bouteille${n > 1 ? "s" : ""} de « ${titre(v)} » proposée${n > 1 ? "s" : ""} à la vente.`); voirFiche(id); } catch (e) { fail(e); }
+    try { await mutate(id, () => ({ venteN: n, ventePrix: t ? Math.round(p * 100) / 100 : null })); dlg.close(); toast(tx("{n} bouteille de « {vin} » proposée à la vente.|{n} bouteilles de « {vin} » proposées à la vente.", { n, vin: titre(v) })); voirFiche(id); } catch (e) { fail(e); }
   };
   const retirerVente = async () => { try { await mutate(id, () => ({ venteN: 0 })); dlg.close(); toast("Ce vin n'est plus proposé à la vente."); voirFiche(id); } catch (e) { fail(e); } };
   $("slotBody").replaceChildren(...[
-    h("p", { class: "meta" }, `${qte(v)} bouteille${qte(v) > 1 ? "s" : ""} en cave${prixDe(v) ? ` · prix actuel estimé ${eur.format(prixDe(v))}` : ""}`),
-    h("h2", null, `Mettre en vente « ${titre(v)} »`),
+    h("p", { class: "meta" }, tx("{n} bouteille en cave|{n} bouteilles en cave", { n: qte(v) }) + (prixDe(v) ? " · " + tx("prix actuel estimé {prix}", { prix: eur.format(prixDe(v)) }) : "")),
+    h("h2", null, tx("Mettre en vente « {vin} »", { vin: titre(v) })),
     h("div", { class: "grid" }, h("label", null, "Bouteilles à vendre", nb), h("label", null, "Prix demandé par bouteille (€)", px)),
     h("p", { class: "meta" }, "Les bouteilles restent dans votre cave et dans vos comptes. Quand l'une est vendue, sortez-la avec « Sortir une bouteille », puis « Vendue »."),
     err,
@@ -2077,9 +2115,9 @@ function ouvrirVente(id) {
 }
 function texteCatalogue(L) {
   const nb = L.reduce((a, v) => a + enVente(v), 0), tot = L.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
-  return [`Bouteilles à vendre · ${$("titre").textContent}`, "",
-    ...L.map(v => `• ${titre(v)}${v.domaine ? ", " + v.domaine : ""}${v.appellation ? " (" + v.appellation + ")" : ""}${contDe(v) !== 75 ? ", " + contTxt(contDe(v)) : ""} : ${enVente(v)} bouteille${enVente(v) > 1 ? "s" : ""}${prixVente(v) ? ", " + eur.format(prixVente(v)) + " l'une" : ", prix à discuter"}`),
-    "", `${nb} bouteille${nb > 1 ? "s" : ""}${tot ? ", " + eur.format(tot) + " au total" : ""}.`].join("\n");
+  return [tr("Bouteilles à vendre") + ` · ${$("titre").textContent}`, "",
+    ...L.map(v => `• ${titre(v)}${v.domaine ? ", " + v.domaine : ""}${v.appellation ? " (" + v.appellation + ")" : ""}${contDe(v) !== 75 ? ", " + contTxt(contDe(v)) : ""} : ` + tx("{n} bouteille|{n} bouteilles", { n: enVente(v) }) + (prixVente(v) ? ", " + tx("{prix} l'une", { prix: eur.format(prixVente(v)) }) : ", " + tr("prix à discuter"))),
+    "", tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? ", " + tx("{somme} au total", { somme: eur.format(tot) }) : "") + "."].join("\n");
 }
 function ouvrirCatalogue() {
   const dlg = $("slotDlg"), cmp = (a, b) => String(a || "").localeCompare(String(b || ""), "fr");
@@ -2095,10 +2133,10 @@ function ouvrirCatalogue() {
   $("slotBody").replaceChildren(...[
     h("p", { class: "meta" }, "Aperçu : ce que verrait un acheteur"),
     h("h2", null, "Bouteilles à vendre"),
-    h("p", { class: "meta" }, `${$("titre").textContent} · ${nb} bouteille${nb > 1 ? "s" : ""}${tot ? " · " + eur.format(tot) : ""}`),
+    h("p", { class: "meta" }, `${$("titre").textContent} · ` + tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? " · " + eur.format(tot) : "")),
     ...L.map(v => h("div", { class: "cat" }, vign(v),
       h("div", null, h("b", null, titre(v)), h("span", { class: "meta" }, [v.domaine, v.appellation, regionStd(v) !== AUTRES ? regionStd(v) : v.region].filter(Boolean).join(" · ")),
-        h("span", { class: "meta" }, [COULEURS[v.couleur], contTxt(contDe(v)), `${enVente(v)} bouteille${enVente(v) > 1 ? "s" : ""} disponible${enVente(v) > 1 ? "s" : ""}`].filter(Boolean).join(" · "))),
+        h("span", { class: "meta" }, [COULEURS[v.couleur], contTxt(contDe(v)), tx("{n} bouteille disponible|{n} bouteilles disponibles", { n: enVente(v) })].filter(Boolean).join(" · "))),
       h("div", { class: "px2" }, prixVente(v) ? eur.format(prixVente(v)) : "—", h("small", null, prixVente(v) ? "la bouteille" : "à discuter")))),
     zone,
     h("p", { class: "meta" }, "« Partager la liste » envoie ce catalogue sous forme de texte, par message ou e-mail. La page publique avec offres de rachat demandera la version hébergée de l'application."),
@@ -2223,7 +2261,7 @@ function assistant(opts) {
   const murs = () => [...new Set([...(W.murs || []), ...W.elems.map(e => e.zone)])].filter(z => z === "gauche" || z === "droite");
   const liste = () => (W.type === "armoire" ? armoireCasiers(W) : W.elems.map(elemVersCasier));
   const places = L => L.reduce((a, k) => a + placesDe(k), 0);
-  const etape = t => h("p", { class: "wz-step" }, `Étape ${W.etape} sur 3 · ${t}`);
+  const etape = t => h("p", { class: "wz-step" }, tx("Étape {n} sur 3", { n: W.etape }) + " · " + tr(t));
   const analyser = async files => {
     let max = 4; try { const lim = await sample.limits(); max = (lim.images && lim.images.maxCount) || 1; } catch (e) {}
     const ctl = wzCtl = new AbortController();
@@ -2257,12 +2295,12 @@ function assistant(opts) {
       h("div", { class: "wide wz-elh" }, dessinModele(e.m), h("div", null, h("span", { class: "meta" }, M.nom, e.incertain ? h("b", { class: "wz-ver" }, " · à vérifier") : null), nm)),
       W.type === "piece" ? h("label", { class: "lab wide" }, "Où dans la pièce", zo) : null,
       ...M.f.map(([k, lab, mn, mx]) => nombre(lab, mn, mx, e.v[k], v => { e.v[k] = v; dessiner(); })),
-      h("div", { class: "wide", style: "display:flex;justify-content:space-between;align-items:center;gap:8px" }, h("span", { class: "meta" }, `${placesDe(elemVersCasier(e))} places`), h("button", { type: "button", class: "btn small danger", onclick: () => { W.elems.splice(i, 1); dessiner(); } }, "Retirer")));
+      h("div", { class: "wide", style: "display:flex;justify-content:space-between;align-items:center;gap:8px" }, h("span", { class: "meta" }, tx("{n} place|{n} places", { n: placesDe(elemVersCasier(e)) })), h("button", { type: "button", class: "btn small danger", onclick: () => { W.elems.splice(i, 1); dessiner(); } }, "Retirer")));
   };
   const catalogue = () => h("div", { class: "wz-cat" }, Object.entries(MODELES).filter(([m]) => W.type === "meuble" || m !== "tiroirs").map(([m, M]) => {
     const n = W.elems.filter(e => e.m === m).length;
-    return h("button", { type: "button", class: "wz-card", "aria-label": `Ajouter : ${M.nom}`, disabled: W.elems.length >= 12, onclick: () => { W.elems.push(nouvelElem(m, W.elems, W.type === "piece" ? ["fond", "gauche", "droite", "sol"][W.elems.length % 4] : "fond")); dessiner(); toast(`Ajouté : ${M.nom}. Réglez ses dimensions plus bas.`); } },
-      dessinModele(m), h("b", null, M.nom), h("span", null, M.desc), n ? h("i", null, `Ajouté × ${n}`) : h("i", { class: "add" }, "+ Ajouter"));
+    return h("button", { type: "button", class: "wz-card", "aria-label": tx("Ajouter : {nom}", { nom: M.nom }), disabled: W.elems.length >= 12, onclick: () => { W.elems.push(nouvelElem(m, W.elems, W.type === "piece" ? ["fond", "gauche", "droite", "sol"][W.elems.length % 4] : "fond")); dessiner(); toast(tx("Ajouté : {nom}. Réglez ses dimensions plus bas.", { nom: M.nom })); } },
+      dessinModele(m), h("b", null, M.nom), h("span", null, M.desc), n ? h("i", null, tx("Ajouté × {n}", { n })) : h("i", { class: "add" }, "+ Ajouter"));
   }));
   const conseils = L => {
     const tot = places(L), T = [];
@@ -2277,14 +2315,14 @@ function assistant(opts) {
       T.push("Un rangement par grande région rend la cave lisible : vous pourrez le réserver à cette région dans « Réorganiser par région ».");
       if (L.some(k => multi(k))) T.push("Croisillons et tiroirs pour les vins achetés par plusieurs bouteilles, cases individuelles pour les bouteilles uniques.");
     }
-    if (W.bouteilles && tot < W.bouteilles) T.push(`Il manque environ ${W.bouteilles - tot} places pour vos ${W.bouteilles} bouteilles : ajoutez un élément, ou gardez le surplus « à ranger ».`);
-    else if (W.bouteilles && tot > W.bouteilles * 1.5) T.push(`Vous avez de la marge : ${tot - W.bouteilles} places libres pour les prochains achats.`);
+    if (W.bouteilles && tot < W.bouteilles) T.push(tx("Il manque environ {n} places pour vos {b} bouteilles : ajoutez un élément, ou gardez le surplus « à ranger ».", { n: W.bouteilles - tot, b: W.bouteilles }));
+    else if (W.bouteilles && tot > W.bouteilles * 1.5) T.push(tx("Vous avez de la marge : {n} places libres pour les prochains achats.", { n: tot - W.bouteilles }));
     return T;
   };
   const finir = async btn => {
     const L = liste(); btn.disabled = true;
     try {
-      if (opts.existante) { const next = { ...(config || {}), casiers: L, forme: W.type }; if (db) await P.cfg().set(next); config = next; dlg.close(); render(); toast(`Cave décrite : ${L.length} rangement${L.length > 1 ? "s" : ""}, ${places(L)} places.`); }
+      if (opts.existante) { const next = { ...(config || {}), casiers: L, forme: W.type }; if (db) await P.cfg().set(next); config = next; dlg.close(); render(); toast(tx("Cave décrite : {n} rangement, {p} places.|Cave décrite : {n} rangements, {p} places.", { n: L.length, p: places(L) })); }
       else { dlg.close(); await creerCave(W.nom, L, W.type); }
     } catch (e) { btn.disabled = false; fail(e); }
   };
@@ -2299,7 +2337,7 @@ function assistant(opts) {
         h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => wzCtl && wzCtl.abort() }, "Arrêter"))));
     } else if (W.etape === 1) {
       const photoOk = canScan && sample;
-      kids.push(etape("Le type de cave"), h("h2", null, W.nom ? `Comment est « ${W.nom} » ?` : "Comment est votre cave ?"),
+      kids.push(etape("Le type de cave"), h("h2", null, W.nom ? tx("Comment est « {nom} » ?", { nom: W.nom }) : "Comment est votre cave ?"),
         photoOk ? h("button", { type: "button", class: "wz-ch wz-photo", onclick: () => $("cavePhoto").click() }, icone("photo"), h("div", null, h("b", null, "D'après une photo"), h("span", null, "Photographiez la cave ou le meuble, ou choisissez des photos : l'application reconnaît les rangements et les compte. Une photo par mur si besoin."))) : null,
         W.erreur ? h("p", { class: "err" }, W.erreur) : null,
         photoOk ? h("div", { class: "psec" }, "Ou décrivez-la vous-même") : null,
@@ -2311,8 +2349,8 @@ function assistant(opts) {
       if (W.source === "photo") kids.push(h("div", { class: "wz-src" },
         W.photos && W.photos.length ? h("div", { class: "wz-ph" }, W.photos.map(src => h("img", { src, alt: "Photo analysée" }))) : null,
         h("b", null, "Proposition faite d'après la photo"),
-        h("span", null, `Vérifiez les nombres avant de continuer : le comptage sur photo est parfois approximatif${W.incertains ? `, surtout pour ${W.incertains > 1 ? `les ${W.incertains} rangements marqués « à vérifier »` : "le rangement marqué « à vérifier »"}` : ""}.`),
-        W.type === "piece" && W.murs && W.murs.length ? h("span", null, `${W.murs.length} pan${W.murs.length > 1 ? "s" : ""} de mur occupé${W.murs.length > 1 ? "s" : ""} : ${["gauche", "fond", "droite"].filter(z => W.murs.includes(z)).map(z => ({ gauche: "mur gauche", fond: "mur du fond", droite: "mur droit" })[z]).join(", ")}${W.elems.some(e => e.zone === "sol") ? ", et des rangements au sol" : ""}.`) : null,
+        h("span", null, (W.incertains ? tx("Vérifiez les nombres avant de continuer : le comptage sur photo est parfois approximatif, surtout pour le rangement marqué « à vérifier ».|Vérifiez les nombres avant de continuer : le comptage sur photo est parfois approximatif, surtout pour les {n} rangements marqués « à vérifier ».", { n: W.incertains }) : tr("Vérifiez les nombres avant de continuer : le comptage sur photo est parfois approximatif."))),
+        W.type === "piece" && W.murs && W.murs.length ? h("span", null, tx("{n} pan de mur occupé|{n} pans de mur occupés", { n: W.murs.length }) + " : " + ["gauche", "fond", "droite"].filter(z => W.murs.includes(z)).map(z => tr({ gauche: "mur gauche", fond: "mur du fond", droite: "mur droit" }[z])).join(", ") + (W.elems.some(e => e.zone === "sol") ? tr(", et des rangements au sol") : "") + ".") : null,
         W.remarque ? h("span", { class: "meta" }, W.remarque) : null));
       if (W.type === "armoire") {
         kids.push(h("h2", null, "Votre cave armoire"),
@@ -2321,27 +2359,27 @@ function assistant(opts) {
             (() => { const sl = h("select", null, [[1, "Une seule"], [2, "Deux zones"], [3, "Trois zones"]].map(([v, l]) => h("option", { value: String(v) }, l))); sl.value = String(W.zones); sl.addEventListener("change", () => { W.zones = +sl.value; dessiner(); }); return h("label", null, "Températures", sl); })(),
             nombre("Clayettes", 1, 30, W.clayettes, v => { W.clayettes = v; dessiner(); }),
             nombre("Bouteilles par clayette", 2, 24, W.parClayette, v => { W.parClayette = v; dessiner(); })),
-          W.capacite > W.clayettes * W.parClayette ? h("label", { style: "display:flex;gap:8px;align-items:center" }, (() => { const c = h("input", { type: "checkbox" }); c.checked = W.bas; c.addEventListener("change", () => { W.bas = c.checked; }); return c; })(), `Bouteilles empilées en bas (${W.capacite - W.clayettes * W.parClayette} places)`) : null,
+          W.capacite > W.clayettes * W.parClayette ? h("label", { style: "display:flex;gap:8px;align-items:center" }, (() => { const c = h("input", { type: "checkbox" }); c.checked = W.bas; c.addEventListener("change", () => { W.bas = c.checked; }); return c; })(), tx("Bouteilles empilées en bas ({n} places)", { n: W.capacite - W.clayettes * W.parClayette })) : null,
           h("p", { class: "meta" }, "Clayettes et bouteilles par clayette sont estimées d'après la capacité : comptez-les sur votre armoire pour être exact."));
       } else {
         kids.push(h("h2", null, W.source === "photo" ? "Les rangements reconnus" : W.type === "meuble" ? "De quoi est fait le meuble ?" : "Quels casiers avez-vous ?"),
           W.source === "photo" ? null : h("p", { class: "meta" }, W.type === "meuble" ? "Touchez chaque partie du meuble : par exemple des alvéoles en haut et des tiroirs en bas." : "Touchez les modèles que vous avez, autant de fois que vous en avez. Vous réglerez ensuite leurs dimensions et leur mur."),
           W.elems.length ? (() => { const old = config, L = W.elems.map(elemVersCasier); config = { casiers: L }; try { return h("div", { class: "wz-apercu" }, h("div", { class: "psec" }, W.type === "piece" ? "Aperçu de la pièce" : "Aperçu du meuble"), W.type === "piece" ? vueCave(L, k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el)), murs()) : h("div", { class: "wz-pv" }, L.map(k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el))))); } finally { config = old; } })() : null,
           ...(W.source === "photo" ? [] : [catalogue()]),
-          h("div", { class: "psec" }, W.elems.length ? `${W.source === "photo" ? "Reconnus sur la photo" : `Vos ${W.type === "meuble" ? "éléments" : "casiers"}`} (${W.elems.length})` : `Aucun ${W.type === "meuble" ? "élément" : "casier"} choisi pour l'instant`),
+          h("div", { class: "psec" }, W.elems.length ? tr(W.source === "photo" ? "Reconnus sur la photo" : W.type === "meuble" ? "Vos éléments" : "Vos casiers") + ` (${W.elems.length})` : tr(W.type === "meuble" ? "Aucun élément choisi pour l'instant" : "Aucun casier choisi pour l'instant")),
           ...W.elems.map(editeurElem),
           ...(W.source === "photo" ? [h("div", { class: "psec" }, "Il en manque un ? Ajoutez-le"), catalogue()] : []),
-          h("div", { class: "grid" }, (() => { const sl = h("select", null, h("option", { value: "0" }, "Je ne sais pas"), [24, 50, 100, 150, 200, 300, 500, 750, 1000].map(n => h("option", { value: String(n) }, `Environ ${n}`))); sl.value = String(W.bouteilles); sl.addEventListener("change", () => { W.bouteilles = +sl.value; }); return h("label", null, "Bouteilles à loger", sl); })()));
+          h("div", { class: "grid" }, (() => { const sl = h("select", null, h("option", { value: "0" }, "Je ne sais pas"), [24, 50, 100, 150, 200, 300, 500, 750, 1000].map(n => h("option", { value: String(n) }, tx("Environ {n}", { n })))); sl.value = String(W.bouteilles); sl.addEventListener("change", () => { W.bouteilles = +sl.value; }); return h("label", null, "Bouteilles à loger", sl); })()));
       }
       kids.push(h("div", { class: "foot" }, h("button", { type: "button", class: "btn", onclick: () => { W.etape = 1; dessiner(); } }, "Retour"),
-        h("div", { class: "right" }, h("span", { class: "meta" }, `${places(liste())} places`), h("button", { type: "button", class: "btn primary", disabled: W.type !== "armoire" && !W.elems.length, onclick: () => { W.etape = 3; dessiner(); } }, "Voir la proposition"))));
+        h("div", { class: "right" }, h("span", { class: "meta" }, tx("{n} place|{n} places", { n: places(liste()) })), h("button", { type: "button", class: "btn primary", disabled: W.type !== "armoire" && !W.elems.length, onclick: () => { W.etape = 3; dessiner(); } }, "Voir la proposition"))));
     } else {
       const L = liste(), tot = places(L), old = config;
       kids.push(etape("La proposition"), h("h2", null, "L'aménagement proposé"),
-        h("p", { class: "wz-tot" }, `${L.length} rangement${L.length > 1 ? "s" : ""}, ${tot} places`));
+        h("p", { class: "wz-tot" }, tx("{n} rangement, {p} places|{n} rangements, {p} places", { n: L.length, p: tot })));
       config = { casiers: L };   // le temps de dessiner les vignettes
-      const blocPv = k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el), h("small", null, `${placesDe(k)} places`));
-      try { if (W.type === "piece") kids.push(vueCave(L, blocPv, murs())); else kids.push(h("div", { class: "wz-pv" }, L.map(k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el), h("small", null, W.type === "armoire" && typ(k) === "etagere" ? `${k.rangs} clayette${k.rangs > 1 ? "s" : ""} de ${k.colonnes}` : `${placesDe(k)} places`))))); }
+      const blocPv = k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el), h("small", null, tx("{n} place|{n} places", { n: placesDe(k) })));
+      try { if (W.type === "piece") kids.push(vueCave(L, blocPv, murs())); else kids.push(h("div", { class: "wz-pv" }, L.map(k => h("div", { class: "bloc" }, h("span", { class: "t" }, k.nom), h("div", { class: "vign" }, dessin(k, {}, true).el), h("small", null, W.type === "armoire" && typ(k) === "etagere" ? tx("{n} clayette de {c}|{n} clayettes de {c}", { n: k.rangs, c: k.colonnes }) : tx("{n} places", { n: placesDe(k) })))))); }
       finally { config = old; }
       kids.push(h("div", { class: "vhist" }, h("b", null, "Conseils d'aménagement"), h("ul", { class: "wz-tips" }, conseils(L).map(t => h("li", null, t)))),
         h("p", { class: "meta" }, "Tout reste modifiable ensuite dans Réglages, « Modifier la cave »."),
@@ -2365,8 +2403,8 @@ async function majToutesValeurs() {
   if (prixBusy || !sample) return;
   const dlg = $("slotDlg"), todo = vins.filter(v => qte(v) > 0).slice(0, 200), ctl = new AbortController();
   let fait = 0;
-  const etat = h("p", { class: "meta", role: "status" }, `0 vin sur ${todo.length}`);
-  $("slotBody").replaceChildren(h("p", { class: "meta" }, `${todo.length} vin${todo.length > 1 ? "s" : ""} en cave`), h("h2", null, "Mise à jour des valeurs…"),
+  const etat = h("p", { class: "meta", role: "status" }, tx("0 vin sur {n}", { n: todo.length }));
+  $("slotBody").replaceChildren(h("p", { class: "meta" }, tx("{n} vin en cave|{n} vins en cave", { n: todo.length })), h("h2", null, "Mise à jour des valeurs…"),
     h("div", { class: "stack", style: "align-items:center;text-align:center;padding:10px 0" }, h("i", { class: "spin", "aria-hidden": "true" }), etat, h("span", { class: "meta" }, "L'application réévalue chaque vin d'après le millésime, l'appellation et le marché. Comptez quelques secondes par groupe de vins.")),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => ctl.abort() }, "Arrêter"))));
   montrer(dlg); prixBusy = true; render();
@@ -2383,7 +2421,7 @@ async function majToutesValeurs() {
         if (change) lignes.push({ id: v.id, titre: titre(v), avant, apres: pr, n: qte(v), raison: typeof x.raison === "string" ? x.raison.trim().slice(0, 120) : "", fiab: ["haute", "moyenne", "basse"].includes(x.fiabilite) ? x.fiabilite : "" });
         await mutate(v.id, y => (change ? { prixActuel: pr, prixMaj: now, prixHist: [...histDe(y), ...(avant && !histDe(y).length ? [{ le: num(y.prixMaj) || now - 1, p: avant }] : []), { le: now, p: pr }].slice(-24) } : { prixMaj: now }));
       }
-      fait = Math.min(todo.length, i + 30); etat.textContent = `${fait} vin${fait > 1 ? "s" : ""} sur ${todo.length}`;
+      fait = Math.min(todo.length, i + 30); etat.textContent = tx("{n} vin sur {total}|{n} vins sur {total}", { n: fait, total: todo.length });
     }
   } catch (e) {
     const c = e && e.code;
@@ -2402,18 +2440,18 @@ function rapportPrix(rap, echec) {
   const delta = [...hausses, ...baisses].reduce((a, x) => a + d(x), 0), pct = x => Math.round(100 * (x.apres - x.avant) / x.avant);
   const signe = n => (n > 0 ? "+" : n < 0 ? "−" : "") + eur.format(Math.abs(n));
   const ligneP = x => h("div", { class: "krow" }, x.v ? vign(x.v) : bouteille("rouge"),
-    h("div", null, h("b", null, x.titre), h("span", { class: "meta" }, x.avant ? `${eur.format(x.avant)} → ${eur.format(x.apres)}` : `Première estimation : ${eur.format(x.apres)}`, nb(x) > 1 ? ` · ${nb(x)} bouteilles` : "", x.fiab === "basse" ? " · estimation peu sûre" : ""),
+    h("div", null, h("b", null, x.titre), h("span", { class: "meta" }, x.avant ? `${eur.format(x.avant)} → ${eur.format(x.apres)}` : tx("Première estimation : {prix}", { prix: eur.format(x.apres) }), nb(x) > 1 ? " · " + tx("{n} bouteilles", { n: nb(x) }) : "", x.fiab === "basse" ? " · " + tr("estimation peu sûre") : ""),
       x.raison ? h("span", { class: "meta", style: "font-style:italic" }, x.raison) : null),
     x.avant ? h("div", { class: "evo " + (x.apres > x.avant ? "up" : "down") }, `${x.apres > x.avant ? "+" : "−"}${Math.abs(pct(x))} %`, h("small", null, signe(d(x)))) : null);
   $("slotBody").replaceChildren(...[
-    h("p", { class: "meta" }, `Le ${new Date(num(rap.le) || Date.now()).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${num(rap.vins)} vin${num(rap.vins) > 1 ? "s" : ""} réévalué${num(rap.vins) > 1 ? "s" : ""}`),
+    h("p", { class: "meta" }, tx("Le {date}", { date: new Date(num(rap.le) || Date.now()).toLocaleDateString(LOCALE(), { day: "numeric", month: "long", year: "numeric" }) }) + " · " + tx("{n} vin réévalué|{n} vins réévalués", { n: num(rap.vins) })),
     h("h2", null, L.length ? "Évolution des prix" : "Aucun prix n'a changé"),
     echec ? h("p", { class: "err" }, echec) : null,
     L.length ? h("dl", { class: "stats duo" }, h("div", null, h("dt", null, "En hausse"), h("dd", null, String(hausses.length))), h("div", null, h("dt", null, "En baisse"), h("dd", null, String(baisses.length))),
       h("div", { class: "val" }, h("dt", null, "Effet sur la cave"), h("dd", { style: `color:var(${delta >= 0 ? "--ok" : "--late"})` }, signe(delta))), nouveaux.length ? h("div", null, h("dt", null, "Premières estimations"), h("dd", null, String(nouveaux.length))) : null) : h("p", null, "Les valeurs de la cave sont confirmées : aucune évolution notable depuis la dernière estimation."),
-    hausses.length ? h("div", { class: "psec" }, `En hausse (${hausses.length})`) : null, ...hausses.map(ligneP),
-    baisses.length ? h("div", { class: "psec" }, `En baisse (${baisses.length})`) : null, ...baisses.map(ligneP),
-    nouveaux.length ? h("div", { class: "psec" }, `Premières estimations (${nouveaux.length})`) : null, ...nouveaux.map(ligneP),
+    hausses.length ? h("div", { class: "psec" }, tx("En hausse ({n})", { n: hausses.length })) : null, ...hausses.map(ligneP),
+    baisses.length ? h("div", { class: "psec" }, tx("En baisse ({n})", { n: baisses.length })) : null, ...baisses.map(ligneP),
+    nouveaux.length ? h("div", { class: "psec" }, tx("Premières estimations ({n})", { n: nouveaux.length })) : null, ...nouveaux.map(ligneP),
     h("p", { class: "meta" }, "Estimations de l'application d'après sa connaissance du marché, sans consulter de site de cotation : une indication à recouper avant une vente. Chaque prix reste modifiable dans la fiche du vin."),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => dlg.close() }, "Fermer")))].filter(Boolean));
   if (!dlg.open) montrer(dlg);
@@ -2427,12 +2465,12 @@ $("cfgCancel").addEventListener("click", () => $("cfgDlg").close());
 $("cfgAdd").addEventListener("click", () => { if (draft.length >= 24) return toast("24 rangements au plus."); cur = { id: "k" + Date.now().toString(36), nom: "", type: "cases", zone: "fond", pos: "centre", rangs: 6, colonnes: 6, cap: 6 }; estNouveau = true; rowsCfg(); $("e-nom").focus(); });
 $("cfgForm").addEventListener("submit", e => {
   e.preventDefault(); if (!cur) return;
-  const o = lire(), ok = (n, max) => Number.isInteger(n) && n >= 1 && n <= max, err = t => { $("e-err").textContent = t; $("e-err").hidden = false; };
+  const o = lire(), ok = (n, max) => Number.isInteger(n) && n >= 1 && n <= max, err = t => { $("e-err").textContent = tr(t); $("e-err").hidden = false; };
   if (!o.nom) return err("Donnez un nom à ce rangement.");
   if (!ok(o.rangs, 20) || !ok(o.colonnes, 20)) return err("Indiquez de 1 à 20 rangées et emplacements par rangée.");
   if (multi(o) && !ok(o.cap, 60)) return err("Indiquez de 1 à 60 bouteilles par compartiment.");
   const neuf = estNouveau;
-  appliquer(L => neuf ? [...L, o] : L.map(y => y.id === o.id ? o : y), neuf ? `« ${o.nom} » ajouté à la cave.` : `« ${o.nom} » enregistré.`);
+  appliquer(L => neuf ? [...L, o] : L.map(y => y.id === o.id ? o : y), tx(neuf ? "« {nom} » ajouté à la cave." : "« {nom} » enregistré.", { nom: o.nom }));
 });
 
 /* ---------- commandes ---------- */
@@ -2457,7 +2495,7 @@ $("p-nomOk").addEventListener("click", async () => {
   try {
     if (db) await P.cfg().set(next); config = next;
     if (db) await sauverCaves(caves.map(c => (c.id === cave ? { ...c, nom } : c)));
-    render(); toast(nom ? `La cave s'appelle maintenant « ${nom} ».` : "Nom par défaut rétabli.");
+    render(); toast(nom ? tx("La cave s'appelle maintenant « {nom} ».", { nom }) : "Nom par défaut rétabli.");
   } catch (e) { fail(e); }
 });
 function ouvrirCave(id) {   // change de cave : on coupe les abonnements de l'ancienne et on repart d'un état vide
@@ -2486,7 +2524,7 @@ async function creerCave(nom, liste, forme) {
     await db.doc("caves/" + id).set(liste ? { nom, casiers: liste, ...(forme ? { forme } : {}) } : { nom });
     await sauverCaves([...caves.map(c => (c.id === "" && !c.nom && cave === "" && config && config.nom ? { ...c, nom: config.nom } : c)), { id, nom }]);
     $("p-newCave").value = ""; tab = "plan"; ouvrirCave(id); scrollTo(0, 0);
-    toast(liste ? `« ${nom} » créée avec ${liste.length} rangement${liste.length > 1 ? "s" : ""}. Ajoutez vos bouteilles avec le bouton +.` : `« ${nom} » créée. Elle est vide : commencez par ses rangements dans Réglages.`);
+    toast(liste ? tx("« {nom} » créée avec {n} rangement. Ajoutez vos bouteilles avec le bouton +.|« {nom} » créée avec {n} rangements. Ajoutez vos bouteilles avec le bouton +.", { nom, n: liste.length }) : tx("« {nom} » créée. Elle est vide : commencez par ses rangements dans Réglages.", { nom }));
   } catch (e) { fail(e); }
   $("p-newCaveOk").disabled = false;
 }
@@ -2498,13 +2536,13 @@ $("caveDel").addEventListener("click", () => {
   const msg = h("p", { class: "meta" }, "Cette suppression est définitive et ne touche pas vos autres caves.");
   const ok = h("button", { class: "btn danger", onclick: async () => {
     ok.disabled = true;
-    try { await effacerCave((k, t) => { msg.textContent = `Suppression en cours : ${k} sur ${t}…`; }); dlg.close(); toast(`« ${nom} » supprimée.`); }
-    catch (e) { msg.textContent = "La suppression s'est interrompue. Une partie des données a pu être effacée : relancez-la pour la terminer."; msg.className = "err"; ok.disabled = false; }
+    try { await effacerCave((k, t) => { msg.textContent = tx("Suppression en cours : {k} sur {t}…", { k, t }); }); dlg.close(); toast(tx("« {nom} » supprimée.", { nom })); }
+    catch (e) { msg.textContent = tr("La suppression s'est interrompue. Une partie des données a pu être effacée : relancez-la pour la terminer."); msg.className = "err"; ok.disabled = false; }
   } }, "Supprimer définitivement");
   $("slotBody").replaceChildren(
     h("p", { class: "meta" }, "Suppression d'une cave"),
-    h("h2", null, `Supprimer la cave « ${nom} » ?`),
-    h("p", { class: "err" }, nbV || nbS ? `Cette cave contient ${nbV} vin${nbV > 1 ? "s" : ""} (${nbB} bouteille${nbB > 1 ? "s" : ""}) et ${nbS} sortie${nbS > 1 ? "s" : ""} enregistrée${nbS > 1 ? "s" : ""}. Tout sera effacé : fiches, photos, rangements et historique.` : "Cette cave est vide. Ses rangements seront effacés."),
+    h("h2", null, tx("Supprimer la cave « {nom} » ?", { nom })),
+    h("p", { class: "err" }, nbV || nbS ? tx("Cette cave contient {v} vin(s) ({b} bouteille(s)) et {s} sortie(s) enregistrée(s). Tout sera effacé : fiches, photos, rangements et historique.", { v: nbV, b: nbB, s: nbS }) : "Cette cave est vide. Ses rangements seront effacés."),
     msg,
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { class: "btn", onclick: () => dlg.close() }, "Annuler"), ok)));
   montrer(dlg);
@@ -2532,6 +2570,8 @@ const DEMO = [
 
 async function start() {
   if (window.__pret) await window.__pret;   // version hébergée : on attend la connexion
+  appliquerLangue(window.__i18n);
+  $("langSel").value = LANG; $("langLab").hidden = !window.changerLangue;
   render();
   setTimeout(() => retourPaiement().catch(() => {}), 800);
   const use = n => (window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
@@ -2539,9 +2579,9 @@ async function start() {
   if (user) { try { if ((await user.can("data.write")) === false) canWrite = false; } catch (e) {} }
   (async () => {
     const pc = $("p-compte");
-    if (!user) { pc.textContent = "Vous n'êtes pas connecté : rien n'est enregistré."; return; }
+    if (!user) { pc.textContent = tr("Vous n'êtes pas connecté : rien n'est enregistré."); return; }
     const me = await user.me().catch(() => null);
-    pc.textContent = me ? `Connecté : ${me.email || me.name || "votre compte"}${me.via ? ` (${me.via})` : ""}.` : "Connecté.";
+    pc.textContent = (me ? tx("Connecté : {qui}", { qui: me.email || me.name || tr("votre compte") }) + (me.via ? ` (${me.via})` : "") + "." : tr("Connecté."));
   })();
   if (s) { sample = s; try { canScan = !!(await s.limits()).images; } catch (e) { canScan = false; } }
   if (!d) { vins = DEMO; loaded = true; render(); return; }

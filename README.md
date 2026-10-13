@@ -76,6 +76,15 @@ QUOTA_JOUR=150
 - `CLAUDE_MODEL` : le modèle utilisé pour le scan et les estimations.
 - `QUOTA_JOUR` : le nombre d'appels à Claude par utilisateur et par jour. Il protège votre facture.
 
+## Langues
+
+L'application existe en français, anglais, allemand, italien et espagnol.
+
+- La langue est choisie automatiquement d'après celle du téléphone ou du navigateur (anglais si elle n'est pas proposée), puis peut être changée dans Réglages, « Compte et sécurité ». Le choix est gardé sur l'appareil et dans le profil de l'utilisateur.
+- Les textes sont écrits en français dans le code. Les traductions sont dans `public/i18n/en.json`, `de.json`, `it.json` et `es.json` : chaque ligne associe le texte français exact à sa traduction. `{n}`, `{vin}`… sont remplacés par des valeurs ; « singulier|pluriel » donne les deux formes.
+- Un texte français absent d'un dictionnaire s'affiche simplement en français.
+- Les conseils, estimations et analyses rédigés par Claude sont demandés dans la langue de l'utilisateur.
+
 ## Développement local
 
 Avec Java installé, `npm run emulateurs` lance l'application sur `http://localhost:5000`, avec des comptes et une base de test : rien ne touche à la production.
