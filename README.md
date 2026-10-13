@@ -105,3 +105,14 @@ Avant une ouverture au public, il faudra ajouter des **mentions légales**, une 
 - Tant que `"paiement": false` dans `public/reglages.json`, aucune limite n'est appliquée.
 
 Mise en route : voir les étapes données dans la conversation (compte Stripe, clés en secrets, webhook, puis `"paiement": true`).
+
+## Dépannage (projet rattaché à une organisation Google Workspace)
+
+Les règles de sécurité par défaut de l'organisation ont demandé, une fois pour toutes :
+
+- d'autoriser l'accès public aux fonctions pour ce projet (règle `iam.allowedPolicyMemberDomains` : `allowAll`) ;
+- de donner au compte de service `229981076704-compute@developer.gserviceaccount.com` les rôles `roles/cloudbuild.builds.builder`, `roles/datastore.user` et `roles/firebaseauth.admin`.
+
+Pour lire l'erreur d'une fonction : `gcloud functions logs read <nom> --region europe-west1 --project wineracker-2e52e --limit 20`.
+
+Stripe : le compte utilise « Managed Payments » (Stripe gère la TVA) ; les produits portent le code fiscal `txcd_10103000` (logiciel en ligne, usage personnel).
