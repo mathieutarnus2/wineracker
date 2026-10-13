@@ -1,5 +1,6 @@
 {
   "google": true,
   "apple": false,
-  "authSurLeDomaine": false
+  "authSurLeDomaine": false,
+  "paiement": false
 }

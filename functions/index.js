@@ -10,7 +10,9 @@ initializeApp();
 const CLE = defineSecret("ANTHROPIC_API_KEY");
 const MODELE = defineString("CLAUDE_MODEL", { default: "claude-sonnet-5-5" });
 const QUOTA = defineInt("QUOTA_JOUR", { default: 150 });   // appels à Claude par utilisateur et par jour
+const OFFERTS = defineString("COMPTES_OFFERTS", { default: "", description: "E-mails qui ont la version complète sans payer, séparés par des virgules" });
 const REGION = "europe-west1";
+const { GRATUIT, PLANS } = require("./plans");
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /* claude({ prompt, images: [{ type, data (base64) }] }) -> { text } */
@@ -53,4 +55,13 @@ exports.supprimerCompte = onCall({ region: REGION, timeoutSeconds: 120 }, async 
   await db.doc(`quotas/${uid}`).delete().catch(() => {});
   await getAuth().deleteUser(uid);
   return { ok: true };
+});
+
+/* L'état de l'abonnement, tel que Stripe l'a confirmé (abonnements/{uid}), ou un accès offert. */
+exports.etatAbonnement = onCall({ region: REGION }, async req => {
+  if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
+  const mail = String(req.auth.token.email || "").toLowerCase();
+  if (mail && req.auth.token.email_verified !== false && OFFERTS.value().toLowerCase().split(",").map(x => x.trim()).includes(mail)) return { plan: "illimite", statut: "offert", gratuit: GRATUIT };
+  const s = await getFirestore().doc(`abonnements/${req.auth.uid}`).get(), d = s.exists ? s.data() : {};
+  return { plan: PLANS[d.plan] ? d.plan : null, statut: d.statut || "aucun", fin: d.fin || null, annule: !!d.annule, client: !!d.customerId, gratuit: GRATUIT };
 });

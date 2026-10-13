@@ -361,6 +361,13 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 .wz-apercu .bloc, .wz-pv .bloc { cursor: default }
 .wz-pv { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px }
 .wz-pv .bloc { cursor: default }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 10px }
+.plan { position: relative; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 12px 12px; display: flex; flex-direction: column; gap: 6px }
+.plan.reco { border: 2px solid var(--accent) }
+.plan-reco { position: absolute; top: -10px; left: 10px; background: var(--accent); color: var(--accent-ink); font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px }
+.plan-prix { font: 400 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums }
+.plan-prix small { font: 500 .8rem var(--body); color: var(--muted) }
+.plan .btn { margin-top: auto }
 .psec { font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-top: 6px }
 .kblock.edit { border: 2px solid var(--accent); background: var(--surface) }
 .kblock h3 { grid-column: 1 / -1; margin: 0; font: 400 1.2rem/1.2 var(--display) }
@@ -486,6 +493,12 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
       <p class="meta" id="cptMsg" hidden></p>
       <p class="meta" id="p-partage">Vos caves sont privées : elles ne sont visibles que depuis votre compte.</p>
       <div><button class="btn small danger" id="cptDel">Supprimer mon compte et mes données…</button></div>
+    </div>
+    <div class="casier" id="aboCard" hidden>
+      <h2>Abonnement</h2>
+      <p id="p-abo">Vérification de votre formule…</p>
+      <div class="row" id="aboBtns"></div>
+      <p class="meta" id="aboMsg" hidden></p>
     </div>
     <div class="casier">
       <h2>Sauvegarde</h2>
@@ -961,6 +974,7 @@ function render() {
     const VV = vins.filter(enVente), nbV = VV.reduce((a, v) => a + enVente(v), 0), totV = VV.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
     $("p-vente").textContent = nbV ? `${nbV} bouteille${nbV > 1 ? "s" : ""} proposée${nbV > 1 ? "s" : ""} à la vente, sur ${VV.length} vin${VV.length > 1 ? "s" : ""}${totV ? `, pour ${eur.format(totV)} demandés` : ""}.` : "Aucune bouteille n'est proposée à la vente pour l'instant.";
     $("catBtn").disabled = $("venteInv").disabled = !nbV;
+    majAbonnement().catch(() => {});
   }
 
   const stat = (l, v) => h("div", null, h("dt", null, l), h("dd", null, v));
@@ -1256,6 +1270,7 @@ function ajouterBouteilles(id) {
   const dlg = $("slotDlg"), nb = selNombre("abN", 1);
   const go = ranger => async () => {
     const k = Math.max(1, Math.min(999, parseInt(nb.value, 10) || 1));
+    if (!(await quota(k))) return;
     try { await mutate(id, x => ({ vrac: num(x.vrac) + k, ajouts: plusAjout(x, k) })); dlg.close(); toast(`${k} bouteille${k > 1 ? "s" : ""} ajoutée${k > 1 ? "s" : ""} à « ${titre(v)} » : ${qte(v) + k} au total.`); if (ranger) lancerRangement(id); else voirFiche(id); }
     catch (e) { fail(e); }
   };
@@ -1297,6 +1312,7 @@ function dupliquer(id) {
     if (!(an >= 1900 && an <= AN + 1)) return toast("Choisissez un millésime dans la liste.");
     if (pris.has(an)) return toast(`Le millésime ${an} de ce vin est déjà référencé.`);
     ok.disabled = true;
+    if (!(await quota(1))) { ok.disabled = false; return; }
     try {
       const nid = await createVin({ nom: v.nom || "", domaine: v.domaine || "", appellation: v.appellation || "", region: v.region || "", pays: v.pays || "", couleur: v.couleur || "rouge", cepages: v.cepages || "",
         ajouts: [{ le: Date.now(), n: 1 }], contenance: contDe(v), millesime: an, prix: null, prixActuel: null, prixMaj: null, boireDe: null, boireA: null, note: 0, commentaire: "", places: [], vrac: 1, bues: 0, creeLe: Date.now() });
@@ -1451,8 +1467,8 @@ function ouvrirDoublon(m) {
   const finir = async fn => { try { await fn(); if (photoNew && !vignetteOk(m.vignette)) await savePhoto(m.id, photoNew).catch(() => {}); if (scanCtl) scanCtl.abort(); dlg.close(); $("dlg").close(); } catch (e) { fail(e); } };
   const ajouter = h("button", { class: "btn primary", onclick: () => {
     const k = Math.max(1, Math.min(999, parseInt(nb.value, 10) || 1)); ajouter.disabled = true;
-    finir(async () => { await mutate(m.id, v => ({ places: slot ? [...places(v), slot] : places(v), vrac: num(v.vrac) + k - (slot ? 1 : 0), ajouts: plusAjout(v, k) }));
-      toast(`${k} bouteille${k > 1 ? "s" : ""} ajoutée${k > 1 ? "s" : ""} à « ${titre(m)} » : ${qte(m) + k} au total.${slot ? " " + slotLabel(slot) + "." : k ? " À ranger depuis le plan." : ""}`); });
+    quota(k).then(ok => { if (!ok) { ajouter.disabled = false; return; } finir(async () => { await mutate(m.id, v => ({ places: slot ? [...places(v), slot] : places(v), vrac: num(v.vrac) + k - (slot ? 1 : 0), ajouts: plusAjout(v, k) }));
+      toast(`${k} bouteille${k > 1 ? "s" : ""} ajoutée${k > 1 ? "s" : ""} à « ${titre(m)} » : ${qte(m) + k} au total.${slot ? " " + slotLabel(slot) + "." : k ? " À ranger depuis le plan." : ""}`); }); });
   } }, "Ajouter à cette fiche");
   $("slotBody").replaceChildren(...[
     h("p", { class: "meta" }, "Ce vin semble déjà référencé"),
@@ -1488,6 +1504,8 @@ $("form").addEventListener("submit", async e => {
   const total = Math.max(0, entier("f-total") ?? 0);
   if (editId) { const old = vins.find(v => v.id === editId), pl = old ? places(old).length : 0; if (total < pl) return err(`${pl} bouteille${pl > 1 ? "s" : ""} de ce vin ${pl > 1 ? "sont rangées" : "est rangée"} sur le plan. Pour en avoir moins, sortez-les depuis le plan.`); }
   $("save").disabled = true;
+  const ajout = editId ? total - qte(vins.find(v => v.id === editId) || {}) : Math.max(1, total);
+  if (ajout > 0 && !(await quota(ajout))) { $("save").disabled = false; return; }
   try {
     let cible = editId;
     if (editId) {
@@ -1919,6 +1937,66 @@ function rendreReorg() {
   dlg.scrollTop = haut; body.scrollTop = haut2;
 }
 $("reorgBtn").addEventListener("click", ouvrirReorg);
+/* ---------- abonnement : contrôle avant chaque ajout, formules, retour de paiement ---------- */
+const C_ = () => (window.compte && window.compte.paiement ? window.compte : null);
+async function quota(n) {   // vrai si l'on peut ajouter n bouteilles ; sinon propose les formules
+  const C = C_(); if (!C || !(n > 0)) return true;
+  let a, t;
+  try { [a, t] = await Promise.all([C.etat(), C.total()]); } catch (e) { return true; }
+  if (a.statut === "inconnu" || t + n <= C.limite(a)) return true;
+  offres({ total: t, besoin: n, a }); return false;
+}
+function offres(o) {
+  const C = C_(); if (!C) return;
+  const dlg = $("slotDlg"), apres = o.total + (o.besoin || 0), gratuit = !C.actif(o.a);
+  const conseille = Object.keys(C.PLANS).find(p => C.PLANS[p].limite >= Math.max(apres, 1));
+  const carte = p => {
+    const P = C.PLANS[p], petit = P.limite < apres, actuel = !gratuit && o.a.plan === p;
+    const b = h("button", { type: "button", class: "btn" + (p === conseille && !actuel ? " primary" : ""), disabled: petit || actuel, onclick: async () => {
+      b.disabled = true; b.textContent = "Ouverture du paiement…";
+      try { await C.payer(p); } catch (e) { b.disabled = false; b.textContent = "Choisir"; toast("Le paiement n'a pas pu s'ouvrir. Vérifiez votre connexion et réessayez."); }
+    } }, actuel ? "Votre formule" : petit ? "Trop petite" : "Choisir");
+    return h("div", { class: "plan" + (p === conseille && !actuel ? " reco" : "") },
+      p === conseille && !actuel ? h("span", { class: "plan-reco" }, "Conseillée pour vous") : null,
+      h("b", null, P.nom), h("div", { class: "plan-prix" }, P.prix, h("small", null, " / an")),
+      h("span", { class: "meta" }, P.limite >= 1e9 ? "Bouteilles illimitées" : `Jusqu'à ${P.limite} bouteilles`), b);
+  };
+  $("slotBody").replaceChildren(...[
+    h("p", { class: "meta" }, `${o.total} bouteille${o.total > 1 ? "s" : ""} dans vos caves`),
+    h("h2", null, o.besoin ? "Il vous faut plus de place" : "Les formules"),
+    h("p", null, gratuit ? `La version gratuite accueille jusqu'à ${C.GRATUIT} bouteilles.${o.besoin ? ` Pour en ajouter ${o.besoin > 1 ? o.besoin : "une"} de plus, choisissez une formule annuelle :` : ""}` : `Votre formule actuelle va jusqu'à ${C.limite(o.a) >= 1e9 ? "un nombre illimité de" : C.limite(o.a)} bouteilles.${o.besoin ? " Pour aller au-delà, passez à la formule supérieure :" : ""}`),
+    h("div", { class: "plans" }, Object.keys(C.PLANS).map(carte)),
+    h("p", { class: "meta" }, "Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule."),
+    h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => dlg.close() }, "Plus tard")))].filter(Boolean));
+  if (!dlg.open) montrer(dlg);
+}
+async function majAbonnement() {
+  const C = C_(), card = $("aboCard"); card.hidden = !C; if (!C) return;
+  const [a, t] = await Promise.all([C.etat(), C.total().catch(() => null)]);
+  const lim = C.limite(a), btns = [];
+  const pTxt = t == null ? "" : ` · ${t} / ${lim >= 1e9 ? "∞" : lim} bouteilles`;
+  if (a.statut === "inconnu") $("p-abo").textContent = "Impossible de vérifier votre formule pour le moment (pas de connexion ?).";
+  else if (a.statut === "offert") $("p-abo").textContent = `Accès complet offert${pTxt}.`;
+  else if (C.actif(a)) {
+    const P = C.PLANS[a.plan];
+    $("p-abo").textContent = `Formule ${P.nom}, ${P.prix} par an${pTxt}.${a.fin ? (a.annule ? ` Résiliée : elle reste active jusqu'au ${new Date(a.fin).toLocaleDateString("fr-FR")}.` : ` Renouvellement le ${new Date(a.fin).toLocaleDateString("fr-FR")}.`) : ""}${a.statut === "past_due" ? " Le dernier paiement a échoué : mettez à jour votre carte." : ""}`;
+    btns.push(h("button", { class: "btn", onclick: async e => { e.target.disabled = true; try { await C.portail(); } catch (er) { e.target.disabled = false; toast("L'espace abonnement n'a pas pu s'ouvrir. Réessayez."); } } }, "Gérer mon abonnement"));
+  } else {
+    $("p-abo").textContent = `Version gratuite${pTxt.replace(String(lim) + " bouteilles", `${lim} bouteilles`)}.${t != null && t >= lim ? " Limite atteinte : vous pouvez consulter et sortir vos bouteilles, mais plus en ajouter." : ""}`;
+    if (a.client) btns.push(h("button", { class: "btn", onclick: async e => { e.target.disabled = true; try { await C.portail(); } catch (er) { e.target.disabled = false; } } }, "Mes factures"));
+  }
+  if (a.statut !== "offert" && a.statut !== "inconnu" && (!C.actif(a) || a.plan !== "illimite")) btns.unshift(h("button", { class: "btn primary", onclick: async () => offres({ total: t || 0, a }) }, C.actif(a) ? "Changer de formule" : "Voir les formules"));
+  $("aboBtns").replaceChildren(...btns);
+}
+async function retourPaiement() {   // de retour de la page Stripe
+  const q = new URLSearchParams(location.search).get("abonnement"); if (!q) return;
+  history.replaceState(null, "", location.pathname);
+  const C = C_(); if (!C) return;
+  if (q !== "merci") return toast("Paiement annulé : rien n'a été débité.");
+  toast("Merci ! Activation de votre abonnement…");
+  for (let i = 0; i < 12; i++) { const a = await C.etat(true); if (C.actif(a)) { toast(`Abonnement ${C.PLANS[a.plan].nom} activé. Bonne cave !`); if (tab === "param") majAbonnement(); return; } await new Promise(r => setTimeout(r, 2500)); }
+  toast("Paiement reçu. L'activation peut prendre une minute : rouvrez Réglages, Abonnement, un peu plus tard.");
+}
 /* ---------- plan de vente : bouteilles proposées et catalogue ---------- */
 function ouvrirVente(id) {
   const v = vins.find(x => x.id === id); if (!v) return;
@@ -2401,6 +2479,7 @@ const DEMO = [
 async function start() {
   if (window.__pret) await window.__pret;   // version hébergée : on attend la connexion
   render();
+  setTimeout(() => retourPaiement().catch(() => {}), 800);
   const use = n => (window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
   const [d, user, s] = await Promise.all([use("db"), use("user"), use("sample")]);
   if (user) { try { if ((await user.can("data.write")) === false) canWrite = false; } catch (e) {} }

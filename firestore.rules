@@ -5,8 +5,16 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
-    // Les quotas ne sont tenus que par les fonctions serveur.
+    // L'abonnement n'est écrit que par le serveur (après confirmation de Stripe) ; l'utilisateur peut le lire.
+    match /abonnements/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    // Quotas et réglages internes : serveur uniquement.
     match /quotas/{uid} {
+      allow read, write: if false;
+    }
+    match /systeme/{doc} {
       allow read, write: if false;
     }
   }

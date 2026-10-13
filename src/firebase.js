@@ -244,6 +244,35 @@ async function importer(file) {
   } catch (e) { bk(`L'import s'est arrêté après ${fait} éléments. Relancez-le : les éléments déjà importés seront simplement remplacés.`); console.warn(e); }
 }
 
+/* ---------- abonnement : 50 bouteilles gratuites, puis une formule annuelle (Stripe) ---------- */
+const PLANS = {
+  cave100: { nom: "Cave 100", limite: 100, prix: "5,99 €" },
+  cave200: { nom: "Cave 200", limite: 200, prix: "9,90 €" },
+  illimite: { nom: "Grande cave", limite: 1e9, prix: "19,90 €" },
+};
+const GRATUIT = 50;
+const fnEtat = httpsCallable(fns, "etatAbonnement"), fnPayer = httpsCallable(fns, "creerPaiement"), fnPortail = httpsCallable(fns, "portailAbonnement");
+let abo = null;
+const compte = {
+  paiement: reglages.paiement === true, PLANS, GRATUIT,
+  async etat(frais) {   // l'état confirmé par le serveur ; « inconnu » hors ligne, pour ne jamais bloquer quelqu'un sans réseau
+    if (!abo || frais) { try { abo = (await fnEtat({})).data; } catch (e) { if (!abo) return { statut: "inconnu" }; } }
+    return abo;
+  },
+  actif: a => !!(a && ["active", "trialing", "past_due", "offert"].includes(a.statut) && PLANS[a.plan]),
+  limite(a) { return compte.actif(a) ? PLANS[a.plan].limite : GRATUIT; },
+  async total() {   // bouteilles en cave, toutes caves confondues
+    const lire = async p => (await getDocs(collection(fs, `${base()}/${p}`))).docs;
+    const liste = (await getDoc(doc(fs, `${base()}/config/caves`))).data();
+    const ids = ((liste && liste.liste) || []).map(c => c && c.id).filter(id => typeof id === "string" && id);
+    let n = 0;
+    for (const pre of ["", ...ids.map(id => `caves/${id}/`)]) for (const d of await lire(pre + "vins")) { const v = d.data(); n += (Array.isArray(v.places) ? v.places.length : 0) + (typeof v.vrac === "number" && v.vrac > 0 ? v.vrac : 0); }
+    return n;
+  },
+  async payer(plan) { const r = await fnPayer({ plan }); location.href = r.data.url; },
+  async portail() { const r = await fnPortail({}); location.href = r.data.url; },
+};
+
 /* ---------- démarrage ---------- */
 brancherConnexion();
 let demarre = false;
@@ -255,6 +284,7 @@ onAuthStateChanged(auth, u => {
   if (demarre) return;
   demarre = true;
   brancherReglages();
+  window.compte = compte;
   window.claude = { use: async n => (n === "db" ? db : n === "user" ? user : n === "sample" ? sample : null) };
   window.__pretOk();
 });

@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "emulateurs": "npm run build && firebase emulators:start",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy --only hosting,firestore,functions:default",
+    "deploy:paiement": "firebase deploy --only functions:paiement"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

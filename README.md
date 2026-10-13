@@ -95,3 +95,13 @@ Avant une ouverture au public, il faudra ajouter des **mentions légales**, une 
 - Abonnement : la limite de 50 bouteilles en gratuit, puis le paiement (Stripe sur le web ; achats intégrés si l'app passe par l'App Store).
 - Application iOS et Android sur les stores, en emballant ce site web (par exemple avec Capacitor).
 - Sauvegarde automatique de la base Firestore (exports planifiés).
+
+## Abonnement (Stripe)
+
+- 50 bouteilles gratuites, puis trois formules annuelles : Cave 100 (5,99 €), Cave 200 (9,90 €), Grande cave (19,90 €, illimitée). Les formules sont dans `functions-paiement/plans.js` (et leur affichage dans `src/firebase.js`).
+- Les fonctions Stripe sont dans `functions-paiement/` (codebase « paiement »), publiées à part : `npm run deploy:paiement`.
+- L'état d'un abonnement n'est écrit que par le serveur, dans `abonnements/{uid}`, après confirmation de Stripe (webhook). L'application le lit via la fonction `etatAbonnement`.
+- `COMPTES_OFFERTS` (paramètre des fonctions) : e-mails qui ont la version complète sans payer.
+- Tant que `"paiement": false` dans `public/reglages.json`, aucune limite n'est appliquée.
+
+Mise en route : voir les étapes données dans la conversation (compte Stripe, clés en secrets, webhook, puis `"paiement": true`).
