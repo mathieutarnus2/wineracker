@@ -35,9 +35,11 @@
   .boot { min-height: 100dvh; display: grid; place-items: center }
   .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px 40px; box-sizing: border-box }
   .auth-in { width: 100%; max-width: 24rem; display: flex; flex-direction: column; gap: 16px }
-  .auth-t { margin: 4px 0 12px; display: flex; align-items: center; gap: 14px; line-height: 0 }
-  .auth-t .symb { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .10)) }
-  .auth-t img { height: 46px; width: auto; max-width: calc(100% - 78px) }
+  .auth-t { margin: 4px 0 14px; display: flex; align-items: center; justify-content: center; gap: 14px; line-height: 0 }
+  .auth-t .symb { width: 60px; height: 60px; flex: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .10)) }
+  .auth-t picture { flex: 0 1 auto; min-width: 0; display: block }
+  .auth-t picture img { display: block; width: 220px; max-width: 100%; height: auto; aspect-ratio: 680 / 126 }
+  .auth .sub { text-align: center }
   /* chargement : les bouteilles tournent d'un cran toutes les secondes, sans le cadre */
   .boot svg { width: 76px; height: 76px; overflow: visible }
   .boot .b { animation: tour 4s infinite; transform-box: view-box }
@@ -484,6 +486,17 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 #param { display: flex; flex-direction: column; gap: 16px }
 #param .casier { gap: 12px }
 #param p { margin: 0 }
+#param .pgroupe { font: 600 .78rem/1 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 4px -6px }
+#param .pgroupe:first-child { margin-top: 0 }
+#param .ptitre { font: 400 1.25rem/1.1 var(--display); margin: 0 }
+#param .psub { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px }
+#param .psub h3 { margin: 0; font: 600 .78rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
+#param .pligne { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap }
+#param details.plus summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; list-style: none }
+#param details.plus summary::-webkit-details-marker { display: none }
+#param details.plus summary::before { content: "+ " }
+#param details.plus[open] summary::before { content: "− " }
+#param details.plus[open] { display: flex; flex-direction: column; gap: 10px }
 .pnom { display: flex; gap: 8px; align-items: end }
 .pnom .lab { flex: 1 }
 .pnom input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 1rem; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); width: 100%; min-width: 0 }
@@ -553,69 +566,85 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
   <section id="inv" aria-label="Inventaire" hidden></section>
   <section id="suivi" aria-label="Bouteilles bues et offertes" hidden></section>
   <section id="param" aria-label="Réglages" hidden>
-    <div class="casier" id="p-cavesCard">
-      <h2>Mes caves</h2>
-      <div class="stack" id="p-caves"></div>
-      <div class="pnom">
-        <label class="lab">Nouvelle cave<input id="p-newCave" maxlength="40" autocomplete="off" placeholder="ex. Maison de campagne"></label>
-        <button class="btn" id="p-newCaveOk">Créer</button>
-      </div>
-      <p class="meta">Chaque cave a ses propres rangements, ses vins et ses sorties. Une nouvelle cave démarre vide.</p>
-    </div>
+    <h2 class="pgroupe">Cette cave</h2>
     <div class="casier">
-      <h2>Cette cave</h2>
       <p id="p-resume"></p>
       <div class="row">
         <button class="btn" id="cfgBtn">Modifier la cave</button>
         <button class="btn" id="mRang">Ajouter un rangement</button>
         <button class="btn" id="reorgBtn">Réorganiser par région</button>
-        <button class="btn" id="valBtn">Mettre à jour les valeurs</button>
       </div>
-      <p class="meta" id="p-val"></p>
-      <p class="meta">« Modifier la cave » réunit son nom, ses rangements et sa suppression. « Réorganiser par région » propose un nouveau rangement par région et appellation, avec la liste des bouteilles à déplacer.</p>
+      <p class="meta">Nom, rangements et suppression de la cave se règlent dans « Modifier la cave ».</p>
+      <div class="psub">
+        <h3>Valeur</h3>
+        <p class="meta" id="p-val"></p>
+        <div class="row"><button class="btn" id="valBtn">Mettre à jour les valeurs</button></div>
+      </div>
+      <div class="psub">
+        <h3>Plan de vente</h3>
+        <p id="p-vente"></p>
+        <div class="row">
+          <button class="btn" id="catBtn">Voir le catalogue</button>
+          <button class="btn" id="venteInv">Vins à vendre dans l'inventaire</button>
+        </div>
+        <details class="plus"><summary>Comment mettre une bouteille en vente ?</summary><p class="meta">Pour proposer une bouteille : ouvrez sa fiche, puis Actions, « Mettre en vente ». Le catalogue montre ce qu'un acheteur verrait, sans vos emplacements ni vos prix d'achat.</p></details>
+      </div>
     </div>
+    <div class="casier" id="p-cavesCard">
+      <h3 class="ptitre">Mes caves</h3>
+      <div class="stack" id="p-caves"></div>
+      <details class="plus"><summary>Créer une autre cave</summary>
+        <div class="pnom">
+          <label class="lab">Nouvelle cave<input id="p-newCave" maxlength="40" autocomplete="off" placeholder="ex. Maison de campagne"></label>
+          <button class="btn" id="p-newCaveOk">Créer</button>
+        </div>
+        <p class="meta">Chaque cave a ses propres rangements, ses vins et ses sorties. Une nouvelle cave démarre vide.</p>
+      </details>
+    </div>
+
+    <h2 class="pgroupe">Mon compte</h2>
     <div class="casier">
-      <h2>Plan de vente</h2>
-      <p id="p-vente"></p>
-      <div class="row">
-        <button class="btn" id="catBtn">Voir le catalogue</button>
-        <button class="btn" id="venteInv">Vins à vendre dans l'inventaire</button>
+      <div class="pligne">
+        <p id="p-compte">Connexion en cours de vérification…</p>
+        <button class="btn small" id="cptOut">Se déconnecter</button>
       </div>
-      <p class="meta">Pour proposer une bouteille : ouvrez sa fiche, puis Actions, « Mettre en vente ». Le catalogue montre ce qu'un acheteur verrait, sans vos emplacements ni vos prix d'achat.</p>
+      <div class="psub" id="aboCard" hidden>
+        <h3>Abonnement</h3>
+        <p id="p-abo">Vérification de votre formule…</p>
+        <div class="row" id="aboBtns"></div>
+        <p class="meta" id="aboMsg" hidden></p>
+      </div>
+      <div class="psub" id="profilCard" hidden>
+        <h3>Mon profil</h3>
+        <p id="p-profil">…</p>
+        <div class="row"><button class="btn" id="profilBtn">Compléter mon profil</button></div>
+        <p class="meta">Ces informations restent privées. Le nom, le pays et la confirmation d'âge sont demandés au moment d'un abonnement.</p>
+      </div>
+      <div class="psub">
+        <h3>Préférences et sécurité</h3>
+        <label class="lab" id="langLab" hidden style="max-width:18rem">Langue<select id="langSel"></select></label>
+        <div class="row"><button class="btn" id="cptMdp" hidden>Changer le mot de passe</button></div>
+        <p class="meta" id="cptMsg" hidden></p>
+      </div>
     </div>
-    <div class="casier" id="profilCard" hidden>
-      <h2>Mon profil</h2>
-      <p id="p-profil">…</p>
-      <div class="row"><button class="btn" id="profilBtn">Compléter mon profil</button></div>
-      <p class="meta">Ces informations restent privées. Le nom, le pays et la confirmation d'âge sont demandés au moment d'un abonnement.</p>
-    </div>
+
+    <h2 class="pgroupe">Données et confidentialité</h2>
     <div class="casier">
-      <h2>Compte et sécurité</h2>
-      <p id="p-compte">Connexion en cours de vérification…</p>
-      <label class="lab" id="langLab" hidden style="max-width:18rem">Langue<select id="langSel"></select></label>
-      <div class="row">
-        <button class="btn" id="cptMdp" hidden>Changer le mot de passe</button>
-        <button class="btn" id="cptOut">Se déconnecter</button>
-      </div>
-      <p class="meta" id="cptMsg" hidden></p>
       <p class="meta" id="p-partage">Vos caves sont privées : elles ne sont visibles que depuis votre compte.</p>
-      <div><button class="btn small danger" id="cptDel">Supprimer mon compte et mes données…</button></div>
-    </div>
-    <div class="casier" id="aboCard" hidden>
-      <h2>Abonnement</h2>
-      <p id="p-abo">Vérification de votre formule…</p>
-      <div class="row" id="aboBtns"></div>
-      <p class="meta" id="aboMsg" hidden></p>
-    </div>
-    <div class="casier">
-      <h2>Sauvegarde</h2>
-      <p class="meta">Un fichier qui contient toutes vos caves : vins, photos, sorties et rangements. Gardez-le en lieu sûr ; il permet aussi de tout restaurer, ou de reprendre une cave créée ailleurs.</p>
-      <div class="row">
-        <button class="btn" id="bkExp">Exporter mes données</button>
-        <button class="btn" id="bkImp">Importer une sauvegarde</button>
+      <div class="psub">
+        <h3>Sauvegarde</h3>
+        <p class="meta">Un fichier qui contient toutes vos caves : vins, photos, sorties et rangements. Gardez-le en lieu sûr ; il permet aussi de tout restaurer, ou de reprendre une cave créée ailleurs.</p>
+        <div class="row">
+          <button class="btn" id="bkExp">Exporter mes données</button>
+          <button class="btn" id="bkImp">Importer une sauvegarde</button>
+        </div>
+        <input type="file" id="bkFile" accept="application/json,.json" hidden>
+        <p class="meta" id="bkMsg" hidden></p>
       </div>
-      <input type="file" id="bkFile" accept="application/json,.json" hidden>
-      <p class="meta" id="bkMsg" hidden></p>
+      <div class="psub">
+        <h3>Supprimer le compte</h3>
+        <div><button class="btn small danger" id="cptDel">Supprimer mon compte et mes données…</button></div>
+      </div>
     </div>
     <p class="signature"><img src="img/symbole.svg" alt="" width="22" height="22"><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="97" height="18"></picture><span>v2026.10.13</span></p>
   </section>

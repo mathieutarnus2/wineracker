@@ -829,5 +829,12 @@
 "Nom de famille": "Cognome",
 "Liste partagée avec Wineracker": "Elenco condiviso con Wineracker",
 "Formule {nom} offerte": "Piano {nom} offerto",
-"Offerte jusqu'au {date}.": "Offerto fino al {date}."
+"Offerte jusqu'au {date}.": "Offerto fino al {date}.",
+"Nom, rangements et suppression de la cave se règlent dans « Modifier la cave ».": "Nome, scaffalature ed eliminazione della cantina si regolano in «Modifica la cantina».",
+"Comment mettre une bouteille en vente ?": "Come metto in vendita una bottiglia?",
+"Créer une autre cave": "Crea un'altra cantina",
+"Mon compte": "Il mio account",
+"Préférences et sécurité": "Preferenze e sicurezza",
+"Données et confidentialité": "Dati e privacy",
+"Supprimer le compte": "Elimina l'account"
 }

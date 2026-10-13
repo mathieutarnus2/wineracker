@@ -829,5 +829,12 @@
 "Nom de famille": "Nachname",
 "Liste partagée avec Wineracker": "Liste geteilt mit Wineracker",
 "Formule {nom} offerte": "Tarif {nom} geschenkt",
-"Offerte jusqu'au {date}.": "Geschenkt bis {date}."
+"Offerte jusqu'au {date}.": "Geschenkt bis {date}.",
+"Nom, rangements et suppression de la cave se règlent dans « Modifier la cave ».": "Name, Regale und Löschen des Kellers stellen Sie unter „Keller bearbeiten“ ein.",
+"Comment mettre une bouteille en vente ?": "Wie biete ich eine Flasche zum Verkauf an?",
+"Créer une autre cave": "Weiteren Keller anlegen",
+"Mon compte": "Mein Konto",
+"Préférences et sécurité": "Einstellungen und Sicherheit",
+"Données et confidentialité": "Daten und Datenschutz",
+"Supprimer le compte": "Konto löschen"
 }

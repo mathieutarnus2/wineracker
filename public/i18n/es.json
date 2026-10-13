@@ -829,5 +829,12 @@
 "Nom de famille": "Apellidos",
 "Liste partagée avec Wineracker": "Lista compartida con Wineracker",
 "Formule {nom} offerte": "Plan {nom} ofrecido",
-"Offerte jusqu'au {date}.": "Ofrecido hasta el {date}."
+"Offerte jusqu'au {date}.": "Ofrecido hasta el {date}.",
+"Nom, rangements et suppression de la cave se règlent dans « Modifier la cave ».": "El nombre, los botelleros y la eliminación de la bodega se ajustan en «Editar la bodega».",
+"Comment mettre une bouteille en vente ?": "¿Cómo pongo una botella en venta?",
+"Créer une autre cave": "Crear otra bodega",
+"Mon compte": "Mi cuenta",
+"Préférences et sécurité": "Preferencias y seguridad",
+"Données et confidentialité": "Datos y privacidad",
+"Supprimer le compte": "Eliminar la cuenta"
 }

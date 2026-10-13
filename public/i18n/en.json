@@ -829,5 +829,12 @@
 "Nom de famille": "Last name",
 "Liste partagée avec Wineracker": "List shared with Wineracker",
 "Formule {nom} offerte": "{nom} plan offered",
-"Offerte jusqu'au {date}.": "Offered until {date}."
+"Offerte jusqu'au {date}.": "Offered until {date}.",
+"Nom, rangements et suppression de la cave se règlent dans « Modifier la cave ».": "The cellar's name, racks and deletion are set in “Edit the cellar”.",
+"Comment mettre une bouteille en vente ?": "How do I put a bottle up for sale?",
+"Créer une autre cave": "Create another cellar",
+"Mon compte": "My account",
+"Préférences et sécurité": "Preferences and security",
+"Données et confidentialité": "Data and privacy",
+"Supprimer le compte": "Delete the account"
 }

@@ -35,9 +35,11 @@
   .boot { min-height: 100dvh; display: grid; place-items: center }
   .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px 40px; box-sizing: border-box }
   .auth-in { width: 100%; max-width: 24rem; display: flex; flex-direction: column; gap: 16px }
-  .auth-t { margin: 4px 0 12px; display: flex; align-items: center; gap: 14px; line-height: 0 }
-  .auth-t .symb { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .10)) }
-  .auth-t img { height: 46px; width: auto; max-width: calc(100% - 78px) }
+  .auth-t { margin: 4px 0 14px; display: flex; align-items: center; justify-content: center; gap: 14px; line-height: 0 }
+  .auth-t .symb { width: 60px; height: 60px; flex: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .10)) }
+  .auth-t picture { flex: 0 1 auto; min-width: 0; display: block }
+  .auth-t picture img { display: block; width: 220px; max-width: 100%; height: auto; aspect-ratio: 680 / 126 }
+  .auth .sub { text-align: center }
   /* chargement : les bouteilles tournent d'un cran toutes les secondes, sans le cadre */
   .boot svg { width: 76px; height: 76px; overflow: visible }
   .boot .b { animation: tour 4s infinite; transform-box: view-box }
