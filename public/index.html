@@ -3,19 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ma cave à vin</title>
+<title>Wineracker</title>
 <meta name="description" content="Gérez votre cave à vin : plan de la cave, scan des étiquettes, valeur et dégustation.">
 <meta name="theme-color" content="#eceeea" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Ma cave">
+<meta name="apple-mobile-web-app-title" content="Wineracker">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Wineracker">
+<meta property="og:title" content="Wineracker">
+<meta property="og:description" content="Votre cave, bouteille par bouteille : plan de la cave, scan des étiquettes, valeur et dégustation.">
+<meta property="og:image" content="https://wineracker-2e52e.web.app/img/partage.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>window.__pret = new Promise(ok => { window.__pretOk = ok; });   // l'application attend la connexion avant de démarrer</script>
 <link rel="preconnect" href="https://firestore.googleapis.com">
 <link rel="preconnect" href="https://europe-west1-wineracker-2e52e.cloudfunctions.net">
 <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/symbole.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
@@ -26,8 +35,23 @@
   .boot { min-height: 100dvh; display: grid; place-items: center }
   .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px 40px; box-sizing: border-box }
   .auth-in { width: 100%; max-width: 24rem; display: flex; flex-direction: column; gap: 16px }
-  .auth-logo { width: 72px; height: 72px; border-radius: 18px; box-shadow: 0 6px 18px rgb(0 0 0 / .15) }
-  .auth-t { margin: 4px 0 0 }
+  .auth-t { margin: 4px 0 12px; display: flex; align-items: center; gap: 14px; line-height: 0 }
+  .auth-t .symb { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .10)) }
+  .auth-t img { height: 46px; width: auto; max-width: calc(100% - 78px) }
+  /* chargement : les bouteilles tournent d'un cran toutes les secondes, sans le cadre */
+  .boot svg { width: 76px; height: 76px; overflow: visible }
+  .boot .b { animation: tour 4s infinite; transform-box: view-box }
+  .boot .b2 { animation-delay: -1s } .boot .b3 { animation-delay: -2s } .boot .b4 { animation-delay: -3s }
+  .boot .rouge { fill: #701520 } .boot .or { fill: #d99f3c } .boot .vide { fill: none; stroke: #6f6f62; stroke-width: 2.6; stroke-dasharray: 2.6 1.99 }
+  @media (prefers-color-scheme: dark) { .boot .rouge { fill: #b03a4a } .boot .vide { stroke: #9aa096 } }
+  @keyframes tour {
+    0%, 15% { transform: translate(0, 0); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }
+    25%, 40% { transform: translate(40px, 0); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }
+    50%, 65% { transform: translate(40px, 40px); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }
+    75%, 90% { transform: translate(0, 40px); animation-timing-function: cubic-bezier(.5, 0, .3, 1) }
+    100% { transform: translate(0, 0) }
+  }
+  @media (prefers-reduced-motion: reduce) { .boot .b { animation: none } }
   .auth .sub { margin: 0 }
   .sso { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 16px; font-size: 1rem }
   .sso svg { width: 18px; height: 18px; flex: none }
@@ -42,13 +66,12 @@
 </style>
 </head>
 <body>
-<div class="boot" id="boot" role="status" aria-label="Chargement"><i class="spin"></i></div>
+<div class="boot" id="boot" role="status" aria-label="Chargement"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="b b1 rouge" cx="30" cy="30" r="16.3"/><circle class="b b2 rouge" cx="30" cy="30" r="16.3"/><circle class="b b3 vide" cx="30" cy="30" r="14.6"/><circle class="b b4 or" cx="30" cy="30" r="16.3"/></svg></div>
 
 <main class="auth" id="auth" hidden>
   <div class="auth-in">
-    <img class="auth-logo" src="icons/icon-192.png" alt="">
     <div>
-      <h1 class="auth-t">Ma cave à vin</h1>
+      <h1 class="auth-t"><img class="symb" src="img/symbole.svg" alt=""><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="680" height="126"></picture></h1>
       <p class="sub">Votre cave, bouteille par bouteille.</p>
     </div>
     <div class="stack">
@@ -465,6 +488,8 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 .pnom .lab { flex: 1 }
 .pnom input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 1rem; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); width: 100%; min-width: 0 }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 14px; font-size: .92rem; max-width: calc(100vw - 32px); z-index: 10 }
+  .signature { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 28px 0 8px; opacity: .8 }
+  .signature span { color: var(--muted); font-size: .8rem }
 </style>
 
 <div class="page">
@@ -592,6 +617,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
       <input type="file" id="bkFile" accept="application/json,.json" hidden>
       <p class="meta" id="bkMsg" hidden></p>
     </div>
+    <p class="signature"><img src="img/symbole.svg" alt="" width="22" height="22"><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="97" height="18"></picture><span>v2026.10.13</span></p>
   </section>
 </div>
 
@@ -2192,7 +2218,7 @@ function texteCatalogue(L) {
   const nb = L.reduce((a, v) => a + enVente(v), 0), tot = L.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
   return [tr("Bouteilles à vendre") + ` · ${$("titre").textContent}`, "",
     ...L.map(v => `• ${titre(v)}${v.domaine ? ", " + v.domaine : ""}${v.appellation ? " (" + v.appellation + ")" : ""}${contDe(v) !== 75 ? ", " + contTxt(contDe(v)) : ""} : ` + tx("{n} bouteille|{n} bouteilles", { n: enVente(v) }) + (prixVente(v) ? ", " + tx("{prix} l'une", { prix: eur.format(prixVente(v)) }) : ", " + tr("prix à discuter"))),
-    "", tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? ", " + tx("{somme} au total", { somme: eur.format(tot) }) : "") + "."].join("\n");
+    "", tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? ", " + tx("{somme} au total", { somme: eur.format(tot) }) : "") + ".", "", tr("Liste partagée avec Wineracker") + " · " + location.origin].join("\n");
 }
 function ouvrirCatalogue() {
   const dlg = $("slotDlg"), cmp = (a, b) => String(a || "").localeCompare(String(b || ""), "fr");
@@ -2201,7 +2227,7 @@ function ouvrirCatalogue() {
   const zone = h("textarea", { rows: "8", readonly: true, hidden: true, "aria-label": "Liste à copier", style: "width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink)" });
   const partager = async () => {
     const text = texteCatalogue(L);
-    try { if (navigator.share) { await navigator.share({ title: "Bouteilles à vendre", text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    try { if (navigator.share) { await navigator.share({ title: tr("Bouteilles à vendre"), text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); toast("Liste copiée : collez-la dans un message."); }
     catch (e) { zone.value = text; zone.hidden = false; zone.focus(); zone.select(); toast("Copiez la liste ci-dessous."); }
   };

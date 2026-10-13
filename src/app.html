@@ -390,6 +390,8 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 .pnom .lab { flex: 1 }
 .pnom input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 1rem; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); width: 100%; min-width: 0 }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 14px; font-size: .92rem; max-width: calc(100vw - 32px); z-index: 10 }
+  .signature { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 28px 0 8px; opacity: .8 }
+  .signature span { color: var(--muted); font-size: .8rem }
 </style>
 
 <div class="page">
@@ -517,6 +519,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
       <input type="file" id="bkFile" accept="application/json,.json" hidden>
       <p class="meta" id="bkMsg" hidden></p>
     </div>
+    <p class="signature"><img src="img/symbole.svg" alt="" width="22" height="22"><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="97" height="18"></picture><span>v__VERSION__</span></p>
   </section>
 </div>
 
@@ -2117,7 +2120,7 @@ function texteCatalogue(L) {
   const nb = L.reduce((a, v) => a + enVente(v), 0), tot = L.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
   return [tr("Bouteilles à vendre") + ` · ${$("titre").textContent}`, "",
     ...L.map(v => `• ${titre(v)}${v.domaine ? ", " + v.domaine : ""}${v.appellation ? " (" + v.appellation + ")" : ""}${contDe(v) !== 75 ? ", " + contTxt(contDe(v)) : ""} : ` + tx("{n} bouteille|{n} bouteilles", { n: enVente(v) }) + (prixVente(v) ? ", " + tx("{prix} l'une", { prix: eur.format(prixVente(v)) }) : ", " + tr("prix à discuter"))),
-    "", tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? ", " + tx("{somme} au total", { somme: eur.format(tot) }) : "") + "."].join("\n");
+    "", tx("{n} bouteille|{n} bouteilles", { n: nb }) + (tot ? ", " + tx("{somme} au total", { somme: eur.format(tot) }) : "") + ".", "", tr("Liste partagée avec Wineracker") + " · " + location.origin].join("\n");
 }
 function ouvrirCatalogue() {
   const dlg = $("slotDlg"), cmp = (a, b) => String(a || "").localeCompare(String(b || ""), "fr");
@@ -2126,7 +2129,7 @@ function ouvrirCatalogue() {
   const zone = h("textarea", { rows: "8", readonly: true, hidden: true, "aria-label": "Liste à copier", style: "width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink)" });
   const partager = async () => {
     const text = texteCatalogue(L);
-    try { if (navigator.share) { await navigator.share({ title: "Bouteilles à vendre", text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    try { if (navigator.share) { await navigator.share({ title: tr("Bouteilles à vendre"), text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); toast("Liste copiée : collez-la dans un message."); }
     catch (e) { zone.value = text; zone.hidden = false; zone.focus(); zone.select(); toast("Copiez la liste ci-dessous."); }
   };
