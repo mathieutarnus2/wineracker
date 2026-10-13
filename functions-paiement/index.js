@@ -41,7 +41,7 @@ async function client(s, req) {   // un client Stripe par compte, créé au prem
 }
 const ACTIFS = ["active", "trialing", "past_due"];
 
-exports.creerPaiement = onCall({ region: REGION, secrets: [CLE] }, async req => {
+exports.creerPaiement = onCall({ region: REGION, invoker: "public", secrets: [CLE] }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const plan = req.data && req.data.plan;
   if (!PLANS[plan]) throw new HttpsError("invalid-argument", "Formule inconnue.");
@@ -80,7 +80,7 @@ async function portail(s, customer, site) {
   return s.billingPortal.sessions.create({ customer, return_url: site, configuration: conf, locale: "fr" });
 }
 
-exports.portailAbonnement = onCall({ region: REGION, secrets: [CLE] }, async req => {
+exports.portailAbonnement = onCall({ region: REGION, invoker: "public", secrets: [CLE] }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const snap = await db().doc(`abonnements/${req.auth.uid}`).get(), d = snap.exists ? snap.data() : {};
   if (!d.customerId) throw new HttpsError("failed-precondition", "Aucun abonnement.");
@@ -101,7 +101,7 @@ async function noter(s, sub) {
   await db().doc(`abonnements/${uid}`).set(etatDe(sub), { merge: true });
 }
 
-exports.stripeWebhook = onRequest({ region: REGION, secrets: [CLE, SIGNATURE] }, async (req, res) => {
+exports.stripeWebhook = onRequest({ region: REGION, invoker: "public", secrets: [CLE, SIGNATURE] }, async (req, res) => {
   const s = stripe();
   let ev;
   try { ev = s.webhooks.constructEvent(req.rawBody, req.headers["stripe-signature"], SIGNATURE.value()); }

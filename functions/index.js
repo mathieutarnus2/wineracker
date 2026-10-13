@@ -16,7 +16,7 @@ const { GRATUIT, PLANS } = require("./plans");
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /* claude({ prompt, images: [{ type, data (base64) }] }) -> { text } */
-exports.claude = onCall({ region: REGION, secrets: [CLE], timeoutSeconds: 180, memory: "512MiB", maxInstances: 20 }, async req => {
+exports.claude = onCall({ region: REGION, invoker: "public", secrets: [CLE], timeoutSeconds: 180, memory: "512MiB", maxInstances: 20 }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const { prompt, images = [] } = req.data || {};
   if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 60000) throw new HttpsError("invalid-argument", "Demande invalide.");
@@ -48,7 +48,7 @@ exports.claude = onCall({ region: REGION, secrets: [CLE], timeoutSeconds: 180, m
 });
 
 /* Supprime le compte et toutes ses données (droit à l'effacement). */
-exports.supprimerCompte = onCall({ region: REGION, timeoutSeconds: 120 }, async req => {
+exports.supprimerCompte = onCall({ region: REGION, invoker: "public", timeoutSeconds: 120 }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const uid = req.auth.uid, db = getFirestore();
   await db.recursiveDelete(db.doc(`users/${uid}`));
@@ -58,7 +58,7 @@ exports.supprimerCompte = onCall({ region: REGION, timeoutSeconds: 120 }, async 
 });
 
 /* L'état de l'abonnement, tel que Stripe l'a confirmé (abonnements/{uid}), ou un accès offert. */
-exports.etatAbonnement = onCall({ region: REGION }, async req => {
+exports.etatAbonnement = onCall({ region: REGION, invoker: "public" }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const mail = String(req.auth.token.email || "").toLowerCase();
   if (mail && req.auth.token.email_verified !== false && OFFERTS.value().toLowerCase().split(",").map(x => x.trim()).includes(mail)) return { plan: "illimite", statut: "offert", gratuit: GRATUIT };

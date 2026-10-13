@@ -256,7 +256,7 @@ let abo = null;
 const compte = {
   paiement: reglages.paiement === true, PLANS, GRATUIT,
   async etat(frais) {   // l'état confirmé par le serveur ; « inconnu » hors ligne, pour ne jamais bloquer quelqu'un sans réseau
-    if (!abo || frais) { try { abo = (await fnEtat({})).data; } catch (e) { if (!abo) return { statut: "inconnu" }; } }
+    if (!abo || frais) { try { abo = (await fnEtat({})).data; } catch (e) { console.warn("Abonnement : état illisible", e && e.code, e && e.message); if (!abo) return { statut: "inconnu" }; } }
     return abo;
   },
   actif: a => !!(a && ["active", "trialing", "past_due", "offert"].includes(a.statut) && PLANS[a.plan]),
