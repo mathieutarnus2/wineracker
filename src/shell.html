@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ma cave à vin</title>
+<meta name="description" content="Gérez votre cave à vin : plan de la cave, scan des étiquettes, valeur et dégustation.">
+<meta name="theme-color" content="#eceeea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ma cave">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>window.__pret = new Promise(ok => { window.__pretOk = ok; });   // l'application attend la connexion avant de démarrer</script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  [hidden] { display: none !important }
+  html { padding-top: env(safe-area-inset-top, 0px) }
+  body { margin: 0 }
+  /* écran de connexion : reprend les couleurs et les boutons de l'application */
+  .boot { min-height: 100dvh; display: grid; place-items: center }
+  .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px 40px; box-sizing: border-box }
+  .auth-in { width: 100%; max-width: 24rem; display: flex; flex-direction: column; gap: 16px }
+  .auth-logo { width: 72px; height: 72px; border-radius: 18px; box-shadow: 0 6px 18px rgb(0 0 0 / .15) }
+  .auth-t { margin: 4px 0 0 }
+  .auth .sub { margin: 0 }
+  .sso { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 16px; font-size: 1rem }
+  .sso svg { width: 18px; height: 18px; flex: none }
+  .sso.apple { background: #000; color: #fff; border-color: #000 }
+  @media (prefers-color-scheme: dark) { .sso.apple { background: #fff; color: #000; border-color: #fff } }
+  .ou { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem }
+  .ou::before, .ou::after { content: ""; flex: 1; border-top: 1px solid var(--line) }
+  .auth .lab input { padding: 11px 12px }
+  .auth .btn.primary { padding: 11px 16px; font-size: 1rem }
+  .auth .liens { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+  .auth .ok { color: var(--ok); font-size: .9rem }
+</style>
+</head>
+<body>
+<div class="boot" id="boot" role="status" aria-label="Chargement"><i class="spin"></i></div>
+
+<main class="auth" id="auth" hidden>
+  <div class="auth-in">
+    <img class="auth-logo" src="icons/icon-192.png" alt="">
+    <div>
+      <h1 class="auth-t">Ma cave à vin</h1>
+      <p class="sub">Votre cave, bouteille par bouteille.</p>
+    </div>
+    <div class="stack">
+      <button type="button" class="btn sso apple" id="aApple" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.4.8 2.2-1.3 3.1-2.5c1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 4.9c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>Continuer avec Apple</button>
+      <button type="button" class="btn sso" id="aGoogle" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.7-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1C3.3 21.3 7.4 24 12 24z"/><path fill="#FBBC05" d="M5.3 14.3c-.2-.7-.4-1.5-.4-2.3s.1-1.6.4-2.3V6.6H1.3C.5 8.2 0 10 0 12s.5 3.8 1.3 5.4l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.4 0 3.3 2.7 1.3 6.6l4 3.1c.9-2.8 3.6-4.9 6.7-4.9z"/></svg>Continuer avec Google</button>
+    </div>
+    <div class="ou" id="aOu"><span>ou avec votre e-mail</span></div>
+    <form class="stack" id="aForm" novalidate>
+      <label class="lab">E-mail<input id="aMail" type="email" autocomplete="email" inputmode="email" required></label>
+      <label class="lab">Mot de passe<input id="aMdp" type="password" autocomplete="current-password" required></label>
+      <label class="lab" id="aMdp2L" hidden>Confirmez le mot de passe<input id="aMdp2" type="password" autocomplete="new-password"></label>
+      <p class="meta" id="aAide" hidden>8 caractères au moins.</p>
+      <p class="err" id="aErr" role="alert" hidden></p>
+      <p class="ok" id="aInfo" role="status" hidden></p>
+      <button type="submit" class="btn primary" id="aOk">Se connecter</button>
+      <div class="liens">
+        <button type="button" class="link" id="aMode">Créer un compte</button>
+        <button type="button" class="link" id="aOubli">Mot de passe oublié ?</button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<div id="appRoot" hidden>
+<!--APP-->
+</div>
+<script type="module" src="js/firebase.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+node_modules/
+functions/node_modules/
+*.log
+.firebase/
+functions/.env*
+sauvegarde*.json
+public/js/*.map

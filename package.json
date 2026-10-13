@@ -1,0 +1,14 @@
+{
+  "name": "ma-cave-a-vin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "emulateurs": "npm run build && firebase emulators:start",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "firebase": "12.19.0"
+  }
+}
