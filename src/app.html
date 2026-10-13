@@ -483,6 +483,12 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
       </div>
       <p class="meta">Pour proposer une bouteille : ouvrez sa fiche, puis Actions, « Mettre en vente ». Le catalogue montre ce qu'un acheteur verrait, sans vos emplacements ni vos prix d'achat.</p>
     </div>
+    <div class="casier" id="profilCard" hidden>
+      <h2>Mon profil</h2>
+      <p id="p-profil">…</p>
+      <div class="row"><button class="btn" id="profilBtn">Compléter mon profil</button></div>
+      <p class="meta">Ces informations restent privées. Le nom, le pays et la confirmation d'âge sont demandés au moment d'un abonnement.</p>
+    </div>
     <div class="casier">
       <h2>Compte et sécurité</h2>
       <p id="p-compte">Connexion en cours de vérification…</p>
@@ -974,7 +980,7 @@ function render() {
     const VV = vins.filter(enVente), nbV = VV.reduce((a, v) => a + enVente(v), 0), totV = VV.reduce((a, v) => a + enVente(v) * prixVente(v), 0);
     $("p-vente").textContent = nbV ? `${nbV} bouteille${nbV > 1 ? "s" : ""} proposée${nbV > 1 ? "s" : ""} à la vente, sur ${VV.length} vin${VV.length > 1 ? "s" : ""}${totV ? `, pour ${eur.format(totV)} demandés` : ""}.` : "Aucune bouteille n'est proposée à la vente pour l'instant.";
     $("catBtn").disabled = $("venteInv").disabled = !nbV;
-    majAbonnement().catch(() => {});
+    majAbonnement().catch(() => {}); majProfil().catch(() => {});
   }
 
   const stat = (l, v) => h("div", null, h("dt", null, l), h("dd", null, v));
@@ -1954,7 +1960,7 @@ function offres(o) {
     const P = C.PLANS[p], petit = P.limite < apres, actuel = !gratuit && o.a.plan === p;
     const b = h("button", { type: "button", class: "btn" + (p === conseille && !actuel ? " primary" : ""), disabled: petit || actuel, onclick: async () => {
       b.disabled = true; b.textContent = "Ouverture du paiement…";
-      try { await C.payer(p); } catch (e) { b.disabled = false; b.textContent = "Choisir"; toast("Le paiement n'a pas pu s'ouvrir. Vérifiez votre connexion et réessayez."); }
+      try { if (!(await profilPourPaiement())) { b.disabled = false; b.textContent = "Choisir"; return; } await C.payer(p); } catch (e) { b.disabled = false; b.textContent = "Choisir"; toast("Le paiement n'a pas pu s'ouvrir. Vérifiez votre connexion et réessayez."); }
     } }, actuel ? "Votre formule" : petit ? "Trop petite" : "Choisir");
     return h("div", { class: "plan" + (p === conseille && !actuel ? " reco" : "") },
       p === conseille && !actuel ? h("span", { class: "plan-reco" }, "Conseillée pour vous") : null,
@@ -1997,6 +2003,54 @@ async function retourPaiement() {   // de retour de la page Stripe
   for (let i = 0; i < 12; i++) { const a = await C.etat(true); if (C.actif(a)) { toast(`Abonnement ${C.PLANS[a.plan].nom} activé. Bonne cave !`); if (tab === "param") majAbonnement(); return; } await new Promise(r => setTimeout(r, 2500)); }
   toast("Paiement reçu. L'activation peut prendre une minute : rouvrez Réglages, Abonnement, un peu plus tard.");
 }
+/* ---------- profil de l'utilisateur : facultatif, sauf ce qu'exige un abonnement ---------- */
+const PAYS = { FR: "France", BE: "Belgique", CH: "Suisse", LU: "Luxembourg", MC: "Monaco", CA: "Canada", DE: "Allemagne", IT: "Italie", ES: "Espagne", PT: "Portugal", NL: "Pays-Bas", GB: "Royaume-Uni", US: "États-Unis", AUTRE: "Autre pays" };
+const AMATEUR = { curieux: "Amateur curieux", passionne: "Passionné", collectionneur: "Collectionneur", pro: "Professionnel du vin" };
+let profil = null;
+const profilRef = () => (db ? db.doc("config/profil") : null);
+async function lireProfil() { if (profil) return profil; const r = profilRef(); if (!r) return (profil = {}); try { const s = await r.get(); profil = s.exists ? s.data() : {}; } catch (e) { profil = {}; } return profil; }
+const profilComplet = p => !!(p && p.prenom && p.nom && PAYS[p.pays] && p.majeur === true);
+async function majProfil() {
+  const card = $("profilCard"); card.hidden = !db; if (!db) return;
+  const p = await lireProfil(), nom = [p.prenom, p.nom].filter(Boolean).join(" ");
+  $("p-profil").textContent = nom ? [nom, p.ville && PAYS[p.pays] ? `${p.ville}, ${PAYS[p.pays]}` : PAYS[p.pays], AMATEUR[p.amateur]].filter(Boolean).join(" · ") : "Profil non renseigné.";
+  $("profilBtn").textContent = nom ? "Modifier mon profil" : "Compléter mon profil";
+}
+function ouvrirProfil(pourPaiement) {
+  return new Promise(async fin => {
+    const dlg = $("slotDlg"), p = { pays: "FR", ...(await lireProfil()) };
+    const champ = (id, lab, val, attrs) => h("label", attrs && attrs.wide ? { class: "wide" } : null, lab, h("input", { id: "pf-" + id, value: val || "", autocomplete: attrs && attrs.ac || "off", maxlength: "80", inputmode: attrs && attrs.im || null }));
+    const choix = (id, lab, opts, val, vide) => { const sl = h("select", { id: "pf-" + id }, vide ? h("option", { value: "" }, vide) : null, Object.entries(opts).map(([v, l]) => h("option", { value: v }, l))); sl.value = val || ""; return h("label", null, lab, sl); };
+    const coche = (id, txt, val) => { const c = h("input", { type: "checkbox", id: "pf-" + id, style: "width:20px;height:20px;flex:none;margin:1px 0 0;padding:0" }); c.checked = !!val; return h("label", { class: "wide", style: "display:flex;flex-direction:row;justify-content:flex-start;align-items:flex-start;gap:10px;text-transform:none;letter-spacing:0;font-size:.92rem;font-weight:500;color:var(--ink)" }, c, h("span", null, txt)); };
+    const err = h("p", { class: "err", hidden: true });
+    let fait = false;
+    const finir = ok => { if (fait) return; fait = true; dlg.close(); fin(ok); };
+    const enreg = async () => {
+      const v = id => $("pf-" + id).value.trim(), np = { prenom: v("prenom").slice(0, 60), nom: v("nom").slice(0, 60), tel: v("tel").slice(0, 30), adresse: v("adresse").slice(0, 120), cp: v("cp").slice(0, 12), ville: v("ville").slice(0, 60), pays: PAYS[v("pays")] ? v("pays") : "", amateur: AMATEUR[v("amateur")] ? v("amateur") : "", majeur: $("pf-majeur").checked, nouvelles: $("pf-nouvelles").checked, maj: Date.now() };
+      if (pourPaiement && !profilComplet(np)) { err.textContent = "Pour vous abonner, indiquez votre prénom, votre nom et votre pays, et confirmez avoir 18 ans ou plus."; err.hidden = false; return; }
+      if (np.tel && !/^[+0-9 ().-]{6,30}$/.test(np.tel)) { err.textContent = "Ce numéro de téléphone n'a pas l'air valide."; err.hidden = false; return; }
+      try { await profilRef().set(np); profil = np; toast("Profil enregistré."); majProfil().catch(() => {}); finir(true); } catch (e) { err.textContent = "L'enregistrement a échoué. Réessayez."; err.hidden = false; }
+    };
+    $("slotBody").replaceChildren(...[
+      h("p", { class: "meta" }, pourPaiement ? "Avant le paiement" : "Facultatif, sauf pour un abonnement"),
+      h("h2", null, pourPaiement ? "Quelques informations" : "Mon profil"),
+      pourPaiement ? h("p", null, "Elles figureront sur vos factures. Vous pourrez les modifier à tout moment dans Réglages.") : null,
+      h("div", { class: "grid" },
+        champ("prenom", "Prénom" + (pourPaiement ? " *" : ""), p.prenom, { ac: "given-name" }), champ("nom", "Nom" + (pourPaiement ? " *" : ""), p.nom, { ac: "family-name" }),
+        champ("adresse", "Adresse", p.adresse, { wide: true, ac: "street-address" }),
+        champ("cp", "Code postal", p.cp, { ac: "postal-code", im: "numeric" }), champ("ville", "Ville", p.ville, { ac: "address-level2" }),
+        choix("pays", "Pays" + (pourPaiement ? " *" : ""), PAYS, p.pays), champ("tel", "Téléphone", p.tel, { ac: "tel", im: "tel" }),
+        choix("amateur", "Vous êtes plutôt", AMATEUR, p.amateur, "Je préfère ne pas dire"),
+        coche("majeur", "J'ai 18 ans ou plus" + (pourPaiement ? " *" : ""), p.majeur),
+        coche("nouvelles", "Recevoir par e-mail les nouveautés de Wineracker (quelques fois par an, désinscription à tout moment dans Réglages)", p.nouvelles)),
+      err,
+      h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => finir(false) }, "Annuler"), h("button", { type: "button", class: "btn primary", onclick: enreg }, pourPaiement ? "Continuer vers le paiement" : "Enregistrer")))].filter(Boolean));
+    dlg.addEventListener("close", () => finir(false), { once: true });
+    if (!dlg.open) montrer(dlg);
+  });
+}
+async function profilPourPaiement() { return profilComplet(await lireProfil()) || ouvrirProfil(true); }
+$("profilBtn").addEventListener("click", () => ouvrirProfil(false));
 /* ---------- plan de vente : bouteilles proposées et catalogue ---------- */
 function ouvrirVente(id) {
   const v = vins.find(x => x.id === id); if (!v) return;

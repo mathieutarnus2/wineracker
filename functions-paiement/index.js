@@ -52,6 +52,12 @@ exports.creerPaiement = onCall({ region: REGION, invoker: "public", secrets: [CL
   const plan = req.data && req.data.plan;
   if (!PLANS[plan]) throw new HttpsError("invalid-argument", "Formule inconnue.");
   const s = stripe(), site = origine(req), { id, d } = await client(s, req);
+  // le profil de l'utilisateur sert au nom et à l'adresse des factures
+  try {
+    const pf = (await db().doc(`users/${req.auth.uid}/config/profil`).get()).data() || {};
+    const nom = [pf.prenom, pf.nom].filter(Boolean).join(" ");
+    if (nom) await s.customers.update(id, { name: nom, ...(pf.pays && pf.pays !== "AUTRE" ? { address: { line1: pf.adresse || undefined, postal_code: pf.cp || undefined, city: pf.ville || undefined, country: pf.pays } } : {}), ...(pf.tel ? { phone: pf.tel } : {}) });
+  } catch (e) { logger.warn("Profil non repris dans Stripe", e.message); }
   // déjà abonné : on change de formule depuis l'espace client plutôt que de payer deux fois
   if (d.subscriptionId && ACTIFS.includes(d.statut)) return { url: (await portail(s, id, site)).url };
   const prix = await prixDe(s, plan);
