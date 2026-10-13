@@ -2,5 +2,5 @@
   "google": true,
   "apple": false,
   "authSurLeDomaine": false,
-  "paiement": false
+  "paiement": true
 }
