@@ -1,1 +1,17 @@
-{ "projects": { "default": "wineracker-2e52e" } }
+{
+  "projects": {
+    "default": "wineracker-2e52e"
+  },
+  "targets": {
+    "wineracker-2e52e": {
+      "hosting": {
+        "app": [
+          "wineracker-2e52e"
+        ],
+        "vitrine": [
+          "wineracker-com"
+        ]
+      }
+    }
+  }
+}

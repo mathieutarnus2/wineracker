@@ -827,5 +827,7 @@
 "vide": "empty",
 "« {nom} » : ": "“{nom}”: ",
 "Nom de famille": "Last name",
-"Liste partagée avec Wineracker": "List shared with Wineracker"
+"Liste partagée avec Wineracker": "List shared with Wineracker",
+"Formule {nom} offerte": "{nom} plan offered",
+"Offerte jusqu'au {date}.": "Offered until {date}."
 }

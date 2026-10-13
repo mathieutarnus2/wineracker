@@ -85,6 +85,17 @@ L'application existe en français, anglais, allemand, italien et espagnol.
 - Un texte français absent d'un dictionnaire s'affiche simplement en français.
 - Les conseils, estimations et analyses rédigés par Claude sont demandés dans la langue de l'utilisateur.
 
+## Back-office
+
+`https://<site de l'app>/admin` : liste des comptes, formules, bouteilles, usage de Claude ; offrir une formule (pour une durée ou sans limite), relever le nombre d'appels à Claude par jour, suspendre un compte, créer un lien de mot de passe, exporter en CSV.
+
+- Accès réservé aux e-mails du paramètre `ADMINS` des fonctions (demandé au premier déploiement, gardé dans `functions/.env.<projet>`), avec un e-mail vérifié (la connexion Google le garantit).
+- Les accès offerts sont rangés dans `offres/{uid}` (lisibles seulement par le serveur). Une formule offerte plus grande que celle payée passe devant ; l'abonnement Stripe n'est pas touché.
+
+## Page d'accueil (wineracker.com)
+
+Le dossier `landing/` est publié sur un second site Firebase Hosting (cible `vitrine`, site `wineracker-com`), l'app reste sur la cible `app`. Les deux partent avec `firebase deploy --only hosting`. Les textes sont en français dans la page, les autres langues dans le script en bas de `landing/index.html`.
+
 ## Développement local
 
 Avec Java installé, `npm run emulateurs` lance l'application sur `http://localhost:5000`, avec des comptes et une base de test : rien ne touche à la production.

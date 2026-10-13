@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wineracker · Votre cave, bouteille par bouteille</title>
+<meta name="description" content="Wineracker : le plan de votre cave à vin, le scan des étiquettes, la valeur de vos bouteilles et le bon moment pour les ouvrir. Gratuit jusqu'à 50 bouteilles.">
+<meta name="theme-color" content="#fdfcf6">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Wineracker">
+<meta property="og:title" content="Wineracker · Votre cave, bouteille par bouteille">
+<meta property="og:description" content="Le plan de votre cave, le scan des étiquettes, la valeur de vos bouteilles. Gratuit jusqu'à 50 bouteilles.">
+<meta property="og:image" content="https://wineracker.com/img/partage.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/symbole.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #fdfcf6; --paper: #f6f0e3; --surface: #fffefa; --ink: #241a17; --muted: #6e6259; --line: #e7dfd0;
+  --wine: #701520; --wine-2: #8f1f2c; --gold: #d99f3c; --on-wine: #fff8ee;
+  --display: "Gloock", Georgia, serif; --body: "Hanken Grotesk", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15110f; --paper: #1d1815; --surface: #221c18; --ink: #f1e9dd; --muted: #a99d90; --line: #3a3029;
+  --wine: #c6485a; --wine-2: #d9667a; --gold: #e0a849; --on-wine: #22090d; color-scheme: dark;
+} }
+* { box-sizing: border-box }
+html { scroll-behavior: smooth }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 var(--body); -webkit-font-smoothing: antialiased }
+a { color: inherit }
+img { max-width: 100% }
+.w { max-width: 1120px; margin: 0 auto; padding: 0 20px }
+/* barre du haut */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px }
+.marque { display: flex; align-items: center; gap: 10px; text-decoration: none }
+.marque img.s { width: 38px; height: 38px }
+.marque picture img { height: 24px; width: auto; display: block }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 12px 22px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); background: var(--surface); transition: transform .15s, background .15s }
+.btn:hover { transform: translateY(-1px) }
+.btn.vin { background: var(--wine); border-color: var(--wine); color: var(--on-wine) }
+.btn.vin:hover { background: var(--wine-2) }
+.btn.mini { padding: 8px 16px; font-size: .92rem }
+/* accroche */
+.hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding-block: 40px 72px }
+.hero h1 { font: 400 clamp(2.5rem, 5.6vw, 4.4rem)/1.02 var(--display); margin: 0 0 20px; letter-spacing: -.01em }
+.hero h1 em { font-style: normal; color: var(--wine) }
+.hero p.lead { font-size: 1.18rem; color: var(--muted); margin: 0 0 28px; max-width: 34rem }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center }
+.bientot { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: .92rem }
+.store { display: inline-flex; align-items: center; gap: 8px; border: 1px dashed var(--line); border-radius: 12px; padding: 8px 12px; color: var(--muted) }
+.store svg { width: 18px; height: 18px; flex: none }
+/* téléphone */
+.tel { justify-self: center; position: relative; width: min(330px, 80vw) }
+.tel .cadre { border-radius: 44px; padding: 10px; background: #1b1513; box-shadow: 0 30px 60px -20px rgb(60 20 20 / .35), 0 0 0 1px rgb(255 255 255 / .06) inset }
+.tel .ecran { border-radius: 35px; overflow: hidden; aspect-ratio: 390 / 800; background: #eceeea }
+.tel .ecran img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block }
+.tel .deco { position: absolute; inset: auto -36px -26px auto; width: 120px; height: 120px; z-index: -1 }
+.tel .deco2 { position: absolute; inset: -30px auto auto -40px; width: 90px; height: 90px; z-index: -1; opacity: .8 }
+/* sections */
+section.bande { padding: 76px 0; border-top: 1px solid var(--line) }
+section.papier { background: var(--paper) }
+h2 { font: 400 clamp(1.9rem, 3.6vw, 2.7rem)/1.1 var(--display); margin: 0 0 14px }
+.chapo { color: var(--muted); margin: 0 0 40px; max-width: 40rem; font-size: 1.08rem }
+.atouts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px }
+.atout { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px }
+.atout .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--paper); display: grid; place-items: center; margin-bottom: 14px }
+.atout .ico svg { width: 24px; height: 24px; stroke: var(--wine); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.atout h3 { margin: 0 0 6px; font-size: 1.08rem }
+.atout p { margin: 0; color: var(--muted); font-size: .97rem }
+.etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; counter-reset: e }
+.etape { position: relative; padding-top: 58px }
+.etape::before { counter-increment: e; content: counter(e); position: absolute; top: 0; left: 0; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 400 1.4rem/1 var(--display); background: var(--wine); color: var(--on-wine) }
+.etape:nth-child(2)::before { background: var(--gold); color: #2a1a05 }
+.etape:nth-child(3)::before { background: transparent; color: var(--ink); border: 2px dashed var(--muted) }
+.etape h3 { margin: 0 0 6px; font-size: 1.12rem }
+.etape p { margin: 0; color: var(--muted) }
+.prix { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px }
+.offre { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 4px }
+.offre.gratuit { background: var(--wine); color: var(--on-wine); border-color: var(--wine) }
+.offre.gratuit .q, .offre.gratuit .d { color: inherit; opacity: .85 }
+.offre b { font-size: 1.05rem }
+.offre .m { font: 400 2.1rem/1.1 var(--display); margin: 8px 0 2px }
+.offre .m small { font: 500 .95rem var(--body); opacity: .75 }
+.offre .q { color: var(--muted); font-size: .95rem }
+.offre .d { color: var(--muted); font-size: .88rem; margin-top: 8px }
+.note { color: var(--muted); font-size: .92rem; margin-top: 18px }
+.final { text-align: center }
+.final .ctas { justify-content: center }
+.final img.s { width: 64px; height: 64px; margin-bottom: 14px }
+footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: .9rem }
+footer .w { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between }
+footer select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px }
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding-block: 16px 64px; gap: 40px } .tel { width: min(300px, 78vw) }
+  .atouts { grid-template-columns: 1fr 1fr } .prix { grid-template-columns: 1fr 1fr } .etapes { grid-template-columns: 1fr }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px } .atouts, .prix { grid-template-columns: 1fr } section.bande { padding: 56px 0 }
+  .nav .btn.mini span.long { display: none }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } .btn { transition: none } }
+</style>
+</head>
+<body>
+<header class="w nav">
+  <a class="marque" href="#" aria-label="Wineracker">
+    <img class="s" src="img/symbole.svg" alt="">
+    <picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="680" height="126"></picture>
+  </a>
+  <a class="btn mini" data-app href="https://app.wineracker.com"><span data-t="seConnecter">Se connecter</span></a>
+</header>
+
+<main>
+  <div class="w hero">
+    <div>
+      <h1 data-t="titre" data-html>Votre cave, <em>bouteille par bouteille.</em></h1>
+      <p class="lead" data-t="lead">Dessinez vos casiers, photographiez vos étiquettes : Wineracker sait où se trouve chaque bouteille, ce qu'elle vaut et quand l'ouvrir.</p>
+      <div class="ctas">
+        <a class="btn vin" data-app href="https://app.wineracker.com" data-t="ouvrir">Commencer gratuitement</a>
+        <a class="btn" href="#formules" data-t="voirPrix">Voir les formules</a>
+      </div>
+      <div class="bientot">
+        <span class="store"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.4.8 2.2-1.3 3.1-2.5c1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 4.9c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg><span data-t="iphone">Bientôt sur iPhone</span></span>
+        <span class="store"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 9.5l1.6-2.8a.4.4 0 0 0-.7-.4l-1.6 2.8a9.7 9.7 0 0 0-7.8 0L7.5 6.3a.4.4 0 1 0-.7.4l1.6 2.8A8.9 8.9 0 0 0 3.8 16h16.4a8.9 8.9 0 0 0-2.6-6.5zM8.5 13.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm7 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg><span data-t="android">Bientôt sur Android</span></span>
+        <span data-t="dejaWeb">En attendant, l'app s'utilise déjà sur téléphone et ordinateur.</span>
+      </div>
+    </div>
+    <div class="tel">
+      <svg class="deco" viewBox="0 0 100 100" aria-hidden="true"><circle cx="30" cy="30" r="16.3" fill="#d99f3c"/><circle cx="70" cy="70" r="14.6" fill="none" stroke="#8a8476" stroke-width="2.6" stroke-dasharray="2.6 1.99"/></svg>
+      <svg class="deco2" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="30" fill="#701520"/></svg>
+      <div class="cadre"><div class="ecran"><img id="capture" src="img/app-fr.webp" alt="Le plan d'une cave dans Wineracker" data-t-alt="altCapture" width="390" height="800"></div></div>
+    </div>
+  </div>
+
+  <section class="bande papier">
+    <div class="w">
+      <h2 data-t="atoutsT">Tout votre vin, enfin en ordre</h2>
+      <p class="chapo" data-t="atoutsC">Une cave de 30 ou de 3 000 bouteilles, dans un placard, une armoire ou une pièce entière.</p>
+      <div class="atouts">
+        <div class="atout"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3" stroke-dasharray="2 2"/></svg></div><h3 data-t="a1t">Le plan de votre cave</h3><p data-t="a1">Casiers, croisillons, clayettes, cave armoire : votre cave telle qu'elle est, mur par mur. Chaque place, pleine ou vide, d'un coup d'œil.</p></div>
+        <div class="atout"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div><h3 data-t="a2t">Une photo de l'étiquette suffit</h3><p data-t="a2">Le nom, le millésime, l'appellation et les cépages se remplissent tout seuls. Vous pouvez aussi photographier la cave pour la dessiner.</p></div>
+        <div class="atout"><div class="ico"><svg viewBox="0 0 24 24"><path d="M8 3h8c0 5-1.5 8-4 8S8 8 8 3zM12 11v9M8 20h8"/></svg></div><h3 data-t="a3t">La bonne bouteille au bon moment</h3><p data-t="a3">Fenêtre de dégustation, accords mets-vins et idées de recettes pour chaque vin. Et le suivi de ce que vous avez bu ou offert.</p></div>
+        <div class="atout"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-8"/><path d="M15 7h5v5"/></svg></div><h3 data-t="a4t">La valeur de votre cave</h3><p data-t="a4">Prix estimés et leur évolution, et un plan de vente pour les bouteilles dont vous voulez vous séparer.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bande">
+    <div class="w">
+      <h2 data-t="etapesT">Prêt en trois gestes</h2>
+      <p class="chapo" data-t="etapesC">Pas besoin de tout saisir le premier jour : la cave se remplit au fil des bouteilles.</p>
+      <div class="etapes">
+        <div class="etape"><h3 data-t="e1t">Décrivez votre cave</h3><p data-t="e1">Répondez à quelques questions, ou prenez-la en photo : Wineracker dessine vos rangements.</p></div>
+        <div class="etape"><h3 data-t="e2t">Rangez vos bouteilles</h3><p data-t="e2">Touchez une place libre et scannez l'étiquette. La fiche du vin se remplit, la bouteille trouve sa place.</p></div>
+        <div class="etape"><h3 data-t="e3t">Profitez-en</h3><p data-t="e3">Buvez, offrez, vendez : Wineracker tient les comptes et vous dit quoi ouvrir ce soir.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bande papier" id="formules">
+    <div class="w">
+      <h2 data-t="prixT">Des formules simples</h2>
+      <p class="chapo" data-t="prixC">Gratuit pour commencer. Une formule annuelle quand votre cave grandit.</p>
+      <div class="prix">
+        <div class="offre gratuit"><b data-t="p0">Découverte</b><div class="m" data-t="gratuit">Gratuit</div><span class="q" data-t="p0q">Jusqu'à 50 bouteilles</span><span class="d" data-t="p0d">Toutes les fonctions, sans carte bancaire.</span></div>
+        <div class="offre"><b>Cave 100</b><div class="m">5,99 €<small data-t="an"> / an</small></div><span class="q" data-t="p1q">Jusqu'à 100 bouteilles</span></div>
+        <div class="offre"><b>Cave 200</b><div class="m">9,90 €<small data-t="an"> / an</small></div><span class="q" data-t="p2q">Jusqu'à 200 bouteilles</span></div>
+        <div class="offre"><b data-t="p3">Grande cave</b><div class="m">19,90 €<small data-t="an"> / an</small></div><span class="q" data-t="p3q">Bouteilles illimitées</span></div>
+      </div>
+      <p class="note" data-t="prixNote">Prix TTC. Sans engagement : vous résiliez quand vous voulez, et vos bouteilles restent consultables.</p>
+    </div>
+  </section>
+
+  <section class="bande final">
+    <div class="w">
+      <img class="s" src="img/symbole.svg" alt="">
+      <h2 data-t="finT">Votre cave vous attend</h2>
+      <p class="chapo" style="margin-left:auto;margin-right:auto" data-t="finC">Créez votre compte en une minute, avec votre e-mail, Google ou Apple.</p>
+      <div class="ctas"><a class="btn vin" data-app href="https://app.wineracker.com" data-t="ouvrir">Commencer gratuitement</a></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="w">
+    <span>© <span id="annee">2026</span> Wineracker</span>
+    <label><span class="sr" data-t="langue" style="margin-right:8px">Langue</span><select id="langue"><option value="fr">Français</option><option value="en">English</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="es">Español</option></select></label>
+  </div>
+</footer>
+
+<script>
+/* Textes : français dans la page, les autres langues ici. La langue suit celle de l'appareil, et le choix est mémorisé. */
+const T = {
+  en: { seConnecter: "Sign in", titre: "Your cellar, <em>bottle by bottle.</em>", lead: "Draw your racks, photograph your labels: Wineracker knows where every bottle is, what it's worth and when to open it.", ouvrir: "Start for free", voirPrix: "See the plans", iphone: "Coming soon on iPhone", android: "Coming soon on Android", dejaWeb: "Meanwhile, the app already works on phone and computer.", altCapture: "A cellar map in Wineracker",
+    atoutsT: "All your wine, finally in order", atoutsC: "A cellar of 30 or 3,000 bottles, in a cupboard, a wine fridge or a whole room.", a1t: "Your cellar map", a1: "Racks, lattices, shelves, wine fridge: your cellar exactly as it is, wall by wall. Every spot, full or empty, at a glance.", a2t: "One photo of the label is enough", a2: "Name, vintage, appellation and grapes fill themselves in. You can also photograph the cellar to draw it.", a3t: "The right bottle at the right time", a3: "Drinking window, food pairings and recipe ideas for every wine. Plus a record of what you've drunk or given away.", a4t: "What your cellar is worth", a4: "Estimated prices and how they move, and a sale plan for the bottles you want to part with.",
+    etapesT: "Ready in three steps", etapesC: "No need to enter everything on day one: the cellar fills up bottle by bottle.", e1t: "Describe your cellar", e1: "Answer a few questions, or take a photo: Wineracker draws your racks.", e2t: "Store your bottles", e2: "Tap a free spot and scan the label. The wine card fills in, the bottle finds its place.", e3t: "Enjoy", e3: "Drink, give, sell: Wineracker keeps track and tells you what to open tonight.",
+    prixT: "Simple plans", prixC: "Free to start. An annual plan when your cellar grows.", p0: "Discovery", gratuit: "Free", p0q: "Up to 50 bottles", p0d: "Every feature, no credit card.", an: " / year", p1q: "Up to 100 bottles", p2q: "Up to 200 bottles", p3: "Large cellar", p3q: "Unlimited bottles", prixNote: "Prices include VAT. No commitment: cancel whenever you like, and your bottles stay viewable.",
+    finT: "Your cellar is waiting", finC: "Create your account in a minute, with your email, Google or Apple.", langue: "Language", title: "Wineracker · Your cellar, bottle by bottle" },
+  de: { seConnecter: "Anmelden", titre: "Ihr Keller, <em>Flasche für Flasche.</em>", lead: "Zeichnen Sie Ihre Regale, fotografieren Sie Ihre Etiketten: Wineracker weiß, wo jede Flasche liegt, was sie wert ist und wann man sie öffnet.", ouvrir: "Kostenlos starten", voirPrix: "Tarife ansehen", iphone: "Bald für iPhone", android: "Bald für Android", dejaWeb: "Bis dahin läuft die App schon auf Smartphone und Computer.", altCapture: "Ein Kellerplan in Wineracker",
+    atoutsT: "Ihr ganzer Wein, endlich geordnet", atoutsC: "Ein Keller mit 30 oder 3.000 Flaschen, im Schrank, im Weinklimaschrank oder in einem ganzen Raum.", a1t: "Der Plan Ihres Kellers", a1: "Fächer, Rauten, Böden, Klimaschrank: Ihr Keller, wie er ist, Wand für Wand. Jeder Platz, voll oder leer, auf einen Blick.", a2t: "Ein Foto des Etiketts genügt", a2: "Name, Jahrgang, Appellation und Rebsorten füllen sich von selbst aus. Sie können auch den Keller fotografieren, um ihn zu zeichnen.", a3t: "Die richtige Flasche zur richtigen Zeit", a3: "Trinkfenster, Speiseempfehlungen und Rezeptideen für jeden Wein. Dazu der Überblick, was Sie getrunken oder verschenkt haben.", a4t: "Der Wert Ihres Kellers", a4: "Geschätzte Preise und ihre Entwicklung, und ein Verkaufsplan für die Flaschen, von denen Sie sich trennen möchten.",
+    etapesT: "In drei Schritten startklar", etapesC: "Sie müssen nicht alles am ersten Tag eingeben: Der Keller füllt sich Flasche für Flasche.", e1t: "Beschreiben Sie Ihren Keller", e1: "Beantworten Sie ein paar Fragen oder machen Sie ein Foto: Wineracker zeichnet Ihre Regale.", e2t: "Räumen Sie Ihre Flaschen ein", e2: "Tippen Sie auf einen freien Platz und scannen Sie das Etikett. Das Weinblatt füllt sich, die Flasche findet ihren Platz.", e3t: "Genießen Sie", e3: "Trinken, verschenken, verkaufen: Wineracker behält den Überblick und sagt Ihnen, was Sie heute Abend öffnen.",
+    prixT: "Einfache Tarife", prixC: "Kostenlos zum Start. Ein Jahrestarif, wenn Ihr Keller wächst.", p0: "Einstieg", gratuit: "Kostenlos", p0q: "Bis zu 50 Flaschen", p0d: "Alle Funktionen, ohne Kreditkarte.", an: " / Jahr", p1q: "Bis zu 100 Flaschen", p2q: "Bis zu 200 Flaschen", p3: "Großer Keller", p3q: "Unbegrenzt Flaschen", prixNote: "Preise inkl. MwSt. Ohne Bindung: jederzeit kündbar, Ihre Flaschen bleiben einsehbar.",
+    finT: "Ihr Keller wartet", finC: "Erstellen Sie Ihr Konto in einer Minute, mit E-Mail, Google oder Apple.", langue: "Sprache", title: "Wineracker · Ihr Keller, Flasche für Flasche" },
+  it: { seConnecter: "Accedi", titre: "La tua cantina, <em>bottiglia per bottiglia.</em>", lead: "Disegna le tue scaffalature, fotografa le etichette: Wineracker sa dove si trova ogni bottiglia, quanto vale e quando aprirla.", ouvrir: "Inizia gratis", voirPrix: "Vedi i piani", iphone: "Presto su iPhone", android: "Presto su Android", dejaWeb: "Nel frattempo, l'app funziona già su telefono e computer.", altCapture: "La pianta di una cantina in Wineracker",
+    atoutsT: "Tutto il tuo vino, finalmente in ordine", atoutsC: "Una cantina da 30 o da 3.000 bottiglie, in un armadio, una cantinetta o un'intera stanza.", a1t: "La pianta della tua cantina", a1: "Caselle, losanghe, ripiani, cantinetta: la tua cantina com'è, parete per parete. Ogni posto, pieno o vuoto, a colpo d'occhio.", a2t: "Basta una foto dell'etichetta", a2: "Nome, annata, denominazione e vitigni si compilano da soli. Puoi anche fotografare la cantina per disegnarla.", a3t: "La bottiglia giusta al momento giusto", a3: "Finestra di degustazione, abbinamenti e idee di ricette per ogni vino. E lo storico di ciò che hai bevuto o regalato.", a4t: "Il valore della tua cantina", a4: "Prezzi stimati e il loro andamento, e un piano di vendita per le bottiglie di cui vuoi separarti.",
+    etapesT: "Pronta in tre gesti", etapesC: "Non serve inserire tutto il primo giorno: la cantina si riempie bottiglia dopo bottiglia.", e1t: "Descrivi la tua cantina", e1: "Rispondi a qualche domanda, o scatta una foto: Wineracker disegna le tue scaffalature.", e2t: "Sistema le bottiglie", e2: "Tocca un posto libero e scansiona l'etichetta. La scheda si compila, la bottiglia trova il suo posto.", e3t: "Goditela", e3: "Bevi, regala, vendi: Wineracker tiene i conti e ti dice cosa aprire stasera.",
+    prixT: "Piani semplici", prixC: "Gratis per iniziare. Un piano annuale quando la cantina cresce.", p0: "Scoperta", gratuit: "Gratis", p0q: "Fino a 50 bottiglie", p0d: "Tutte le funzioni, senza carta di credito.", an: " / anno", p1q: "Fino a 100 bottiglie", p2q: "Fino a 200 bottiglie", p3: "Grande cantina", p3q: "Bottiglie illimitate", prixNote: "Prezzi IVA inclusa. Senza vincoli: disdici quando vuoi, e le tue bottiglie restano consultabili.",
+    finT: "La tua cantina ti aspetta", finC: "Crea il tuo account in un minuto, con e-mail, Google o Apple.", langue: "Lingua", title: "Wineracker · La tua cantina, bottiglia per bottiglia" },
+  es: { seConnecter: "Iniciar sesión", titre: "Tu bodega, <em>botella a botella.</em>", lead: "Dibuja tus botelleros, fotografía tus etiquetas: Wineracker sabe dónde está cada botella, cuánto vale y cuándo abrirla.", ouvrir: "Empieza gratis", voirPrix: "Ver los planes", iphone: "Próximamente en iPhone", android: "Próximamente en Android", dejaWeb: "Mientras tanto, la app ya funciona en móvil y ordenador.", altCapture: "El plano de una bodega en Wineracker",
+    atoutsT: "Todo tu vino, por fin en orden", atoutsC: "Una bodega de 30 o de 3.000 botellas, en un armario, una vinoteca o una habitación entera.", a1t: "El plano de tu bodega", a1: "Casillas, rombos, bandejas, vinoteca: tu bodega tal como es, pared a pared. Cada hueco, lleno o vacío, de un vistazo.", a2t: "Basta una foto de la etiqueta", a2: "El nombre, la añada, la denominación y las uvas se rellenan solos. También puedes fotografiar la bodega para dibujarla.", a3t: "La botella adecuada en el momento adecuado", a3: "Ventana de consumo, maridajes e ideas de recetas para cada vino. Y el historial de lo que has bebido o regalado.", a4t: "El valor de tu bodega", a4: "Precios estimados y su evolución, y un plan de venta para las botellas de las que quieras desprenderte.",
+    etapesT: "Lista en tres pasos", etapesC: "No hace falta introducirlo todo el primer día: la bodega se llena botella a botella.", e1t: "Describe tu bodega", e1: "Responde a unas preguntas, o hazle una foto: Wineracker dibuja tus botelleros.", e2t: "Coloca tus botellas", e2: "Toca un hueco libre y escanea la etiqueta. La ficha se rellena y la botella encuentra su sitio.", e3t: "Disfruta", e3: "Bebe, regala, vende: Wineracker lleva las cuentas y te dice qué abrir esta noche.",
+    prixT: "Planes sencillos", prixC: "Gratis para empezar. Un plan anual cuando tu bodega crezca.", p0: "Descubrimiento", gratuit: "Gratis", p0q: "Hasta 50 botellas", p0d: "Todas las funciones, sin tarjeta.", an: " / año", p1q: "Hasta 100 botellas", p2q: "Hasta 200 botellas", p3: "Bodega grande", p3q: "Botellas ilimitadas", prixNote: "Precios con IVA. Sin permanencia: cancela cuando quieras, y tus botellas siguen consultables.",
+    finT: "Tu bodega te espera", finC: "Crea tu cuenta en un minuto, con tu correo, Google o Apple.", langue: "Idioma", title: "Wineracker · Tu bodega, botella a botella" },
+};
+const LANGS = ["fr", "en", "de", "it", "es"];
+function choisir() {
+  try { const l = localStorage.getItem("langue"); if (LANGS.includes(l)) return l; } catch (e) {}
+  for (const x of navigator.languages || [navigator.language]) { const c = String(x || "").slice(0, 2).toLowerCase(); if (LANGS.includes(c)) return c; }
+  return "en";
+}
+const FR = {}; document.querySelectorAll("[data-t]").forEach(el => { FR[el.dataset.t] = el.innerHTML; });
+FR.title = document.title; FR.altCapture = document.getElementById("capture").alt;
+function appliquer(l) {
+  const D = T[l] || {};
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-t]").forEach(el => { const v = l === "fr" ? FR[el.dataset.t] : D[el.dataset.t]; if (v != null) { if (el.hasAttribute("data-html") || l === "fr") el.innerHTML = v; else el.textContent = v; } });
+  document.title = (l === "fr" ? FR.title : D.title) || FR.title;
+  const cap = document.getElementById("capture"); cap.src = `img/app-${l}.webp`; cap.alt = (l === "fr" ? FR.altCapture : D.altCapture) || FR.altCapture;
+  document.getElementById("langue").value = l;
+}
+const L0 = choisir(); appliquer(L0);
+document.getElementById("langue").addEventListener("change", e => { try { localStorage.setItem("langue", e.target.value); } catch (x) {} appliquer(e.target.value); });
+document.getElementById("annee").textContent = new Date().getFullYear();
+/* Le lien vers l'app : app.wineracker.com une fois le domaine branché, sinon l'adresse Firebase. */
+const APP = /(^|\.)wineracker\.com$/.test(location.hostname) ? "https://app.wineracker.com" : "https://wineracker-2e52e.web.app";
+document.querySelectorAll("[data-app]").forEach(a => { a.href = APP; });
+</script>
+</body>
+</html>

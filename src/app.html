@@ -2018,7 +2018,7 @@ async function majAbonnement() {
   const lim = C.limite(a), btns = [];
   const pTxt = t == null ? "" : ` · ${t} / ${lim >= 1e9 ? "∞" : lim} ` + tr("bouteilles");
   if (a.statut === "inconnu") $("p-abo").textContent = tr("Impossible de vérifier votre formule pour le moment (pas de connexion ?).");
-  else if (a.statut === "offert") $("p-abo").textContent = tr("Accès complet offert") + pTxt + ".";
+  else if (a.statut === "offert") $("p-abo").textContent = (a.plan === "illimite" && !a.fin ? tr("Accès complet offert") : tx("Formule {nom} offerte", { nom: C.PLANS[a.plan] ? C.PLANS[a.plan].nom : "" })) + pTxt + "." + (a.fin ? " " + tx("Offerte jusqu'au {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "");
   else if (C.actif(a)) {
     const P = C.PLANS[a.plan];
     $("p-abo").textContent = tx("Formule {nom}, {prix} par an", { nom: P.nom, prix: P.prix }) + pTxt + "." + (a.fin ? " " + tx(a.annule ? "Résiliée : elle reste active jusqu'au {date}." : "Renouvellement le {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "") + (a.statut === "past_due" ? " " + tr("Le dernier paiement a échoué : mettez à jour votre carte.") : "");

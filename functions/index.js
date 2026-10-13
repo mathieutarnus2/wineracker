@@ -24,9 +24,10 @@ exports.claude = onCall({ region: REGION, invoker: "public", secrets: [CLE], tim
 
   // quota quotidien par utilisateur, pour maîtriser les coûts
   const db = getFirestore(), jour = new Date().toISOString().slice(0, 10), ref = db.doc(`quotas/${req.auth.uid}`);
+  const offre = await db.doc(`offres/${req.auth.uid}`).get(), max = Math.max(QUOTA.value(), (offre.exists && offre.data().scansJour) || 0);   // le back-office peut en offrir plus
   await db.runTransaction(async t => {
     const s = await t.get(ref), d = s.exists ? s.data() : {}, n = d.jour === jour ? d.n || 0 : 0;
-    if (n >= QUOTA.value()) throw new HttpsError("resource-exhausted", "Limite quotidienne atteinte.");
+    if (n >= max) throw new HttpsError("resource-exhausted", "Limite quotidienne atteinte.");
     t.set(ref, { jour, n: n + 1, total: (d.total || 0) + 1 });
   });
 
@@ -62,6 +63,14 @@ exports.etatAbonnement = onCall({ region: REGION, invoker: "public" }, async req
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const mail = String(req.auth.token.email || "").toLowerCase();
   if (mail && req.auth.token.email_verified !== false && OFFERTS.value().toLowerCase().split(",").map(x => x.trim()).includes(mail)) return { plan: "illimite", statut: "offert", gratuit: GRATUIT };
-  const s = await getFirestore().doc(`abonnements/${req.auth.uid}`).get(), d = s.exists ? s.data() : {};
-  return { plan: PLANS[d.plan] ? d.plan : null, statut: d.statut || "aucun", fin: d.fin || null, annule: !!d.annule, client: !!d.customerId, gratuit: GRATUIT };
+  const db = getFirestore();
+  const [s, so] = await Promise.all([db.doc(`abonnements/${req.auth.uid}`).get(), db.doc(`offres/${req.auth.uid}`).get()]);
+  const d = s.exists ? s.data() : {}, o = so.exists ? so.data() : {};
+  const paye = { plan: PLANS[d.plan] ? d.plan : null, statut: d.statut || "aucun", fin: d.fin || null, annule: !!d.annule, client: !!d.customerId, gratuit: GRATUIT };
+  // une formule offerte depuis le back-office, encore valable et plus grande que celle payée, passe devant
+  const actifPaye = paye.plan && ["active", "trialing", "past_due"].includes(paye.statut);
+  if (PLANS[o.plan] && (!o.fin || o.fin > Date.now()) && (!actifPaye || PLANS[o.plan].limite > PLANS[paye.plan].limite)) return { plan: o.plan, statut: "offert", fin: o.fin || null, client: paye.client, gratuit: GRATUIT };
+  return paye;
 });
+
+Object.assign(exports, require("./admin"));
