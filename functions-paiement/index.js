@@ -19,12 +19,18 @@ const REGION = "europe-west1";
 const stripe = () => new Stripe(CLE.value());
 const db = () => getFirestore();
 
+// Catégorie fiscale Stripe : logiciel en ligne (SaaS) à usage personnel. Exigée quand Stripe gère la TVA (« Managed Payments »).
+const CODE_FISCAL = "txcd_10103000";
 /* Le prix Stripe de chaque formule est créé tout seul la première fois, puis retrouvé par sa « lookup key ». */
 async function prixDe(s, plan) {
   const P = PLANS[plan];
-  const L = await s.prices.list({ lookup_keys: [P.cle], active: true, limit: 1 });
-  if (L.data.length) return L.data[0];
-  const produit = await s.products.create({ name: `Wineracker · ${P.nom}`, description: P.limite < 1e9 ? `Jusqu'à ${P.limite} bouteilles, un an` : "Bouteilles illimitées, un an" });
+  const L = await s.prices.list({ lookup_keys: [P.cle], active: true, limit: 1, expand: ["data.product"] });
+  if (L.data.length) {
+    const pr = L.data[0], prod = pr.product;   // produits créés avant l'ajout du code fiscal : on le complète
+    if (prod && typeof prod === "object" && !prod.tax_code) await s.products.update(prod.id, { tax_code: CODE_FISCAL });
+    return pr;
+  }
+  const produit = await s.products.create({ name: `Wineracker · ${P.nom}`, tax_code: CODE_FISCAL, description: P.limite < 1e9 ? `Jusqu'à ${P.limite} bouteilles, un an` : "Bouteilles illimitées, un an" });
   return s.prices.create({ product: produit.id, currency: "eur", unit_amount: P.centimes, recurring: { interval: "year" }, lookup_key: P.cle, tax_behavior: "inclusive", nickname: P.nom });
 }
 function origine(req) {   // l'adresse de retour après paiement : uniquement nos propres sites
