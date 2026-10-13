@@ -2415,7 +2415,7 @@ function ouvrirCave(id) {   // change de cave : on coupe les abonnements de l'an
   unsubs.push(
     P.cfg().onSnapshot(snap => { config = snap.exists ? snap.data() : null; render(); }, () => {}),
     P.sorties().onSnapshot(snap => { sorties = snap.docs.map(x => ({ id: x.id, ...x.data() })); render(); }, () => {}),
-    col.onSnapshot(snap => { vins = snap.docs.map(x => ({ id: x.id, ...x.data() })); loaded = true; render(); rattraperVignettes(); }, e => { loaded = true; fail(e); render(); }));
+    col.onSnapshot(snap => { if (!loaded) console.info(`[démarrage] vins affichés : ${Math.round(performance.now())} ms${snap.metadata && snap.metadata.fromCache ? " (copie locale)" : ""}`); vins = snap.docs.map(x => ({ id: x.id, ...x.data() })); loaded = true; render(); rattraperVignettes(); }, e => { loaded = true; fail(e); render(); }));
 }
 $("caveSel").addEventListener("change", () => { tab = "plan"; ouvrirCave($("caveSel").value); });
 $("p-newCaveOk").addEventListener("click", async () => {

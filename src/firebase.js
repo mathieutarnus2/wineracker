@@ -9,7 +9,7 @@ import {
 } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
-  doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, writeBatch,
+  doc, collection, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, writeBatch,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
 
@@ -52,7 +52,8 @@ function docApi(path) {
   const ref = doc(fs, `${base()}/${path}`);
   return {
     id: ref.id,
-    get: () => sur(getDoc(ref)).then(snap),
+    // d'abord la copie gardée sur l'appareil : l'app s'affiche tout de suite, même si la connexion au serveur tarde
+    get: async () => { try { const c = await getDocFromCache(ref); getDoc(ref).catch(() => {}); return snap(c); } catch (e) {} return snap(await sur(getDoc(ref))); },
     set: d => sur(setDoc(ref, d)),
     update: d => sur(updateDoc(ref, d)),
     delete: () => sur(deleteDoc(ref)),
@@ -64,7 +65,7 @@ function colApi(path) {
   return {
     doc: id => docApi(`${path}/${id || doc(ref).id}`),
     add: d => sur(addDoc(ref, d)).then(r => ({ id: r.id })),
-    onSnapshot: (cb, ko) => onSnapshot(ref, s => cb({ docs: s.docs.map(snap) }), e => ko && ko(err(e))),
+    onSnapshot: (cb, ko) => onSnapshot(ref, s => cb({ docs: s.docs.map(snap), metadata: s.metadata }), e => ko && ko(err(e))),
   };
 }
 const db = { doc: docApi, collection: colApi };
@@ -274,10 +275,11 @@ const compte = {
 };
 
 /* ---------- démarrage ---------- */
+const T0 = performance.now(), chrono = m => console.info(`[démarrage] ${m} : ${Math.round(performance.now() - T0)} ms`);
 brancherConnexion();
 let demarre = false;
 onAuthStateChanged(auth, u => {
-  $("boot").hidden = true;
+  $("boot").hidden = true; chrono(u ? "connecté" : "écran de connexion");
   if (!u) { if (demarre) location.reload(); $("auth").hidden = false; $("appRoot").hidden = true; return; }
   uid = u.uid;
   $("auth").hidden = true; $("appRoot").hidden = false;
