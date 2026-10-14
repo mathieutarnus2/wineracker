@@ -64,6 +64,14 @@ Pour que la connexion Google et Apple fonctionne depuis l'icône de l'écran d'a
 4. Dans Firebase, Authentication, Apple : saisissez le Services ID, l'identifiant d'équipe, l'identifiant de clé et le contenu du `.p8`.
 5. Mettez `"apple": true` dans `public/reglages.json`, puis `npm run deploy`.
 
+## Sécurité des appels à Claude
+
+- Le serveur construit lui-même chaque demande à partir des modèles écrits dans `src/app.html` (copiés dans `functions/modeles.gen.js` à chaque `npm run build`) : étiquette, conseils, prix, valeurs, photo de cave. Une demande libre est refusée.
+- Les comptes e-mail doivent avoir confirmé leur adresse avant d'utiliser Claude (Google et Apple sont déjà vérifiés).
+- Quotas : `QUOTA_JOUR` par utilisateur (relevable depuis le back-office) et `QUOTA_GLOBAL` pour tout le service (3 000 par défaut).
+- App Check (facultatif) : mettre la clé reCAPTCHA Enterprise dans `public/reglages.json` (`"appCheck": "<clé>"`), publier, puis `APPCHECK=oui` dans `functions/.env.wineracker-2e52e` et republier les fonctions.
+- La suppression d'un compte résilie d'abord son abonnement Stripe.
+
 ## Réglages côté serveur
 
 Ils se modifient dans `functions/.env` (créez le fichier), puis `firebase deploy --only functions` :

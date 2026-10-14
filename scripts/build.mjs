@@ -1,6 +1,7 @@
 // Assemble public/index.html (coquille + application) et regroupe le code Firebase dans public/js/firebase.js.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { build } from "esbuild";
+import { genererModeles } from "./modeles-claude.mjs";
 
 const coquille = await readFile("src/shell.html", "utf8");
 const appli = await readFile("src/app.html", "utf8");
@@ -11,4 +12,5 @@ await mkdir("public/js", { recursive: true });
 await writeFile("public/admin.html", await readFile("src/admin.html", "utf8"));
 await build({ entryPoints: ["src/admin.js"], bundle: true, format: "esm", target: "es2022", minify: true, sourcemap: false, outfile: "public/js/admin.js", legalComments: "none" });
 await build({ entryPoints: ["src/firebase.js"], bundle: true, format: "esm", target: "es2022", minify: true, sourcemap: false, outfile: "public/js/firebase.js", legalComments: "none" });
+await genererModeles();
 console.log("Construit : public/index.html et public/js/firebase.js");

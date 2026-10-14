@@ -802,7 +802,7 @@
 "Un e-mail vient d'être envoyé à {mail} pour choisir un nouveau mot de passe.": "È appena stata inviata un'e-mail a {mail} per scegliere una nuova password.",
 "L'envoi a échoué. Réessayez dans un moment.": "Invio non riuscito. Riprova tra un momento.",
 "Confirmer : tout supprimer définitivement": "Conferma: elimina tutto definitivamente",
-"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Le tue cantine, vini, foto e uscite verranno cancellati, insieme al tuo account. Ricordati di esportare prima i tuoi dati. Tocca di nuovo il pulsante per confermare.",
+"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte, et votre abonnement éventuel sera résilié. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Le tue cantine, vini, foto e uscite verranno cancellati, insieme al tuo account, e l'eventuale abbonamento sarà disdetto. Ricordati di esportare prima i tuoi dati. Tocca di nuovo il pulsante per confermare.",
 "Suppression en cours…": "Eliminazione in corso…",
 "La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste.": "L'eliminazione non è riuscita. Riprova, oppure scrivici se il problema persiste.",
 "Préparation du fichier…": "Preparazione del file…",
@@ -836,5 +836,9 @@
 "Mon compte": "Il mio account",
 "Préférences et sécurité": "Preferenze e sicurezza",
 "Données et confidentialité": "Dati e privacy",
-"Supprimer le compte": "Elimina l'account"
+"Supprimer le compte": "Elimina l'account",
+"Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "Per usare la scansione e i consigli, conferma prima il tuo indirizzo e-mail: apri il link inviato a {mail}.",
+"Renvoyer l'e-mail de confirmation ?": "Inviare di nuovo l'e-mail di conferma?",
+"E-mail envoyé. Ouvrez le lien, puis réessayez.": "E-mail inviata. Apri il link, poi riprova.",
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Conferma prima il tuo indirizzo e-mail con il link ricevuto all'iscrizione, poi riprova."
 }

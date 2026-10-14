@@ -12,6 +12,7 @@ import {
   doc, collection, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, writeBatch,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
 const $ = id => document.getElementById(id);
 
@@ -63,6 +64,8 @@ async function lireConfig() {
 
 const { cfg, reglages } = await lireConfig();
 const app = initializeApp(cfg);
+// App Check : prouve au serveur que les appels viennent bien de l'app (clé reCAPTCHA Enterprise dans reglages.json)
+if (reglages.appCheck && !LOCAL) { try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(reglages.appCheck), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("App Check", e); } }
 const auth = getAuth(app);
 auth.languageCode = LANGUE;
 const fs = initializeFirestore(app, LOCAL ? {} : { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
@@ -132,18 +135,33 @@ function lireJson(t) {
   const x = new Error("Réponse illisible"); x.code = "invalid_json"; throw x;
 }
 const CODES_CLAUDE = { "functions/resource-exhausted": "rate_limited", "functions/unavailable": "rate_limited", "functions/unauthenticated": "session_expired", "functions/invalid-argument": "image_rejected", "functions/failed-precondition": "sampling_disabled" };
+async function appel(demande, images) {   // un compte e-mail tout juste confirmé : on rafraîchit le jeton avant l'appel
+  const u = auth.currentUser;
+  if (u && !u.emailVerified && u.providerData.some(p => p.providerId === "password")) { try { await u.reload(); if (auth.currentUser.emailVerified) await auth.currentUser.getIdToken(true); } catch (e) {} }
+  return appelClaude({ ...demande, images, langue: LANGUE });
+}
+let rappelEnvoye = false;
+function emailAConfirmer() {
+  const u = auth.currentUser; if (!u) return;
+  const m = tx("Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.", { mail: u.email || "" });
+  if (!rappelEnvoye && confirm(m + "\n\n" + tr("Renvoyer l'e-mail de confirmation ?"))) { rappelEnvoye = true; sendEmailVerification(u).then(() => alert(tr("E-mail envoyé. Ouvrez le lien, puis réessayez."))).catch(() => alert(tr("L'envoi a échoué. Réessayez dans un moment."))); }
+  else if (rappelEnvoye) alert(m);
+}
 const sample = {
   limits: async () => ({ images: { maxCount: 4, mediaTypes: TYPES_IMG } }),
-  json: async (prompt, o = {}) => {
+  json: async (q, o = {}) => {
     const brut = !o.images ? [] : o.images instanceof Blob ? [o.images] : Array.from(o.images);
     if (o.signal && o.signal.aborted) { const x = new Error("Arrêté"); x.code = "cancelled"; throw x; }
     const images = await Promise.all(brut.slice(0, 4).map(b => enJpeg(b)));
     const arret = new Promise((_, ko) => o.signal && o.signal.addEventListener("abort", () => { const x = new Error("Arrêté"); x.code = "cancelled"; ko(x); }, { once: true }));
     let r;
-    const NOMS = { en: "anglais", de: "allemand", it: "italien", es: "espagnol" };
-    const consigne = LANGUE !== "fr" ? `\n\nIMPORTANT : rédige tous les textes libres destinés à l'utilisateur (goût, service, apogée, plats, recettes, conseils, raisons, remarques, descriptions) en ${NOMS[LANGUE]}. Ne traduis pas les valeurs imposées par le format demandé (identifiants, couleurs comme « rouge » ou « blanc », types, mots-clés), ni les noms propres de vins, domaines, appellations et régions.` : "";
-    try { r = await Promise.race([appelClaude({ prompt: String(prompt) + consigne, images }), arret]); }
-    catch (e) { if (e.code === "cancelled") throw e; const x = new Error(e.message); x.code = CODES_CLAUDE[e.code] || "upstream_error"; throw x; }
+    const demande = q && typeof q === "object" ? { modele: q.modele, donnees: q.donnees } : {};
+    try { r = await Promise.race([appel(demande, images), arret]); }
+    catch (e) {
+      if (e.code === "cancelled") throw e;
+      if (e.details && e.details.raison === "email_non_verifie") emailAConfirmer();
+      const x = new Error(e.message); x.code = (e.details && e.details.raison === "email_non_verifie") ? "email_unverified" : CODES_CLAUDE[e.code] || "upstream_error"; throw x;
+    }
     return lireJson(r && r.data && r.data.text);
   },
 };
@@ -230,7 +248,7 @@ function brancherReglages() {
   let arme = false;
   $("cptDel").addEventListener("click", async e => {
     const b = e.currentTarget;
-    if (!arme) { arme = true; b.textContent = tr("Confirmer : tout supprimer définitivement"); msg("Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer."); return; }
+    if (!arme) { arme = true; b.textContent = tr("Confirmer : tout supprimer définitivement"); msg("Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte, et votre abonnement éventuel sera résilié. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer."); return; }
     b.disabled = true; msg("Suppression en cours…");
     try { await fnSuppr({}); await signOut(auth).catch(() => {}); location.reload(); }
     catch (er) { b.disabled = false; arme = false; b.textContent = tr("Supprimer mon compte et mes données…"); msg("La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste."); }

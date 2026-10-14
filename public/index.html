@@ -1730,6 +1730,7 @@ $("del").addEventListener("click", async () => {
 
 /* ---------- scan de l'étiquette ---------- */
 const REGLES_CONSEILS = `"apogee" : les années où le vin sera à son meilleur, à l'intérieur de sa fenêtre de dégustation (par exemple "2027 – 2030") ; si le millésime est inconnu, un conseil court (par exemple "dans les 3 ans"). "gout" : 2 ou 3 phrases sur le nez, la bouche et le style de ce vin. "service" : température de service et carafage, en une phrase. "plats" : 4 ou 5 plats qui s'accordent bien, quelques mots chacun. "recettes" : 3 idées de recettes précises, une ligne chacune, le nom du plat puis en quelques mots pourquoi il va avec ce vin.`;
+const promptConseils = fiche => `Tu es sommelier. Voici un vin (JSON) : ${JSON.stringify(fiche).slice(0, 1500)}\nNous sommes en ${AN}. Réponds UNIQUEMENT avec un objet JSON de cette forme : {"boireDe": 2024, "boireA": 2032, "apogee": "2027 – 2030", "gout": "…", "service": "…", "plats": ["…"], "recettes": ["…"], "prixActuel": 25}. Écris en français. "prixActuel" : ton estimation du prix de vente actuel en France, en euros, pour UNE bouteille de ce vin, dans ce millésime et dans la contenance indiquée (un magnum vaut plus du double d'une bouteille) (nombre entier, null si tu n'en as aucune idée fiable). "boireDe" et "boireA" : années de la fenêtre de dégustation (null si le millésime est inconnu). ${REGLES_CONSEILS}`;   // modèle repris tel quel par le serveur (scripts/build.mjs)
 function conseilsDe(d) {
   const str = (x, n) => (typeof x === "string" ? x.trim().slice(0, n) : ""), arr = x => (Array.isArray(x) ? x.map(y => str(y, 220)).filter(Boolean).slice(0, 6) : []);
   const o = { apogee: str(d && d.apogee, 60), gout: str(d && d.gout, 700), service: str(d && d.service, 220), plats: arr(d && d.plats), recettes: arr(d && d.recettes) };
@@ -1740,7 +1741,7 @@ async function demanderConseils(id, btn, ecraser) {   // ecraser : { fenetre, pr
   if (btn) { btn.disabled = true; btn.textContent = tr("Rédaction en cours… une dizaine de secondes"); }
   try {
     const fiche = { nom: v.nom, domaine: v.domaine, appellation: v.appellation, region: v.region, pays: v.pays, couleur: COULEURS[v.couleur], millesime: v.millesime || null, cepages: v.cepages, contenance_cl: contDe(v) };
-    const d = await sample.json(`Tu es sommelier. Voici un vin (JSON) : ${JSON.stringify(fiche).slice(0, 1500)}\nNous sommes en ${AN}. Réponds UNIQUEMENT avec un objet JSON de cette forme : {"boireDe": 2024, "boireA": 2032, "apogee": "2027 – 2030", "gout": "…", "service": "…", "plats": ["…"], "recettes": ["…"], "prixActuel": 25}. Écris en français. "prixActuel" : ton estimation du prix de vente actuel en France, en euros, pour UNE bouteille de ce vin, dans ce millésime et dans la contenance indiquée (un magnum vaut plus du double d'une bouteille) (nombre entier, null si tu n'en as aucune idée fiable). "boireDe" et "boireA" : années de la fenêtre de dégustation (null si le millésime est inconnu). ${REGLES_CONSEILS}`, { cache: false });
+    const d = await sample.json({ modele: "conseils", donnees: fiche }, { cache: false });
     const c = conseilsDe(d); if (!c) throw { code: "invalid_json" };
     const an = x => { const y = parseInt(x, 10); return y >= 1900 && y <= 2150 ? y : null; };
     const px = Number(d.prixActuel), pxOk = isFinite(px) && px > 0 && px < 100000;
@@ -1760,6 +1761,7 @@ const PROMPT = `Tu es sommelier. L'image jointe est la photo de l'étiquette d'u
 Règles : écris en français. "contenance" : la contenance en centilitres si elle est lisible sur l'étiquette ou évidente à la forme du flacon (37.5, 50, 62, 75, 100, 150, 300, 450 ou 600), sinon 75. "rotation" : l'angle, 0, 90, 180 ou 270 degrés dans le sens des aiguilles d'une montre, dont il faut tourner l'image pour que la bouteille soit debout et le texte de l'étiquette droit ; 0 si elle l'est déjà. "millesime" est un nombre, ou null s'il n'est pas lisible sur l'étiquette (ne l'invente pas). Déduis la région, le pays, la couleur et les cépages habituels de l'appellation et du producteur même s'ils ne sont pas écrits. "boireDe" et "boireA" sont ton estimation des années de la fenêtre de dégustation pour ce vin et ce millésime (null si millésime inconnu). Nous sommes en ${AN}. ${REGLES_CONSEILS} "prixActuel" est ton estimation du prix de vente actuel en France, en euros, pour UNE bouteille de ce vin, dans ce millésime et dans la contenance indiquée (un magnum vaut plus du double d'une bouteille) (nombre entier, null si tu n'en as aucune idée fiable). Si la cuvée n'a pas de nom propre, mets le nom du domaine ou du château dans "nom". Chaîne vide pour ce que tu ignores. Si l'image n'est pas une étiquette de vin lisible, réponds {"identifie": false}.`;
 const SCAN_ERR = {
   rate_limited: "Trop de demandes pour l'instant. Réessayez dans quelques minutes.",
+  email_unverified: "Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.",
   image_rejected: "Cette photo n'a pas pu être lue. Reprenez-la.",
   session_expired: "Votre session a expiré. Reconnectez-vous puis réessayez.",
   upstream_error: "La lecture a échoué. Réessayez.",
@@ -1786,7 +1788,7 @@ $("scanFile").addEventListener("change", async e => {
   msg("Lecture de l'étiquette… Comptez une dizaine de secondes.");
   $("attente").hidden = false; $("dlg").scrollTop = 0;
   try {
-    const d = await sample.json(PROMPT, { images: file, signal: ctl.signal });
+    const d = await sample.json({ modele: "etiquette" }, { images: file, signal: ctl.signal });
     if (!d || typeof d !== "object" || d.identifie === false || !(d.nom || d.domaine || d.appellation)) msg(NON_RECONNU, true);
     else {
       const str = (x, n) => (typeof x === "string" ? x.trim().slice(0, n || 120) : "");
@@ -1934,7 +1936,7 @@ async function actualiserPrix() {
     const todo = aActualiser().slice(0, 120);
     for (let i = 0; i < todo.length; i += 40) {
       const lot = todo.slice(i, i + 40).map(v => ({ id: v.id, vin: [v.nom, v.domaine, v.appellation, v.region].filter(Boolean).join(", ").slice(0, 300), millesime: v.millesime || null, couleur: v.couleur, contenance: contDe(v) }));
-      const r = await sample.json(PROMPT_PRIX + JSON.stringify(lot), { cache: false });
+      const r = await sample.json({ modele: "prix", donnees: lot }, { cache: false });
       const now = Date.now();
       for (const x of (Array.isArray(r) ? r : [])) {
         if (!x || !lot.some(l => l.id === x.id)) continue;
@@ -2421,7 +2423,7 @@ function assistant(opts) {
     try {
       const P = await Promise.all(files.slice(0, Math.min(max, 4)).map(f => reduireBlob(f, 1568)));
       W.photos = P.map(x => x.mini);
-      const d = await sample.json(promptCave(P.length), { images: P.map(x => x.blob), signal: ctl.signal });
+      const d = await sample.json({ modele: "cave" }, { images: P.map(x => x.blob), signal: ctl.signal });
       if (lirePhotoCave(d, W)) { W.source = "photo"; W.etape = 2; }
       else W.erreur = "Aucun rangement à vin reconnu sur cette photo. Essayez une vue plus large et bien éclairée, ou décrivez la cave vous-même ci-dessous.";
     } catch (er) {
@@ -2564,7 +2566,7 @@ async function majToutesValeurs() {
   try {
     for (let i = 0; i < todo.length; i += 30) {
       const lot = todo.slice(i, i + 30).map(v => ({ id: v.id, vin: [v.nom, v.domaine, v.appellation, v.region].filter(Boolean).join(", ").slice(0, 300), millesime: v.millesime || null, couleur: v.couleur, contenance: contDe(v), ancien: num(v.prixActuel) || null }));
-      const r = await sample.json(PROMPT_MAJ + JSON.stringify(lot), { cache: false, signal: ctl.signal });
+      const r = await sample.json({ modele: "valeurs", donnees: lot }, { cache: false, signal: ctl.signal });
       for (const x of (Array.isArray(r) ? r : [])) {
         const v = x && todo.find(y => y.id === x.id); if (!v || !lot.some(l => l.id === x.id)) continue;
         const pr = Math.round(Number(x.prix)), ok = isFinite(pr) && pr > 0 && pr < 100000, avant = num(v.prixActuel);

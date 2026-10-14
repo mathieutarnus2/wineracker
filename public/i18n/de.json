@@ -802,7 +802,7 @@
 "Un e-mail vient d'être envoyé à {mail} pour choisir un nouveau mot de passe.": "Eine E-Mail wurde soeben an {mail} gesendet, um ein neues Passwort zu wählen.",
 "L'envoi a échoué. Réessayez dans un moment.": "Senden fehlgeschlagen. Versuchen Sie es gleich noch einmal.",
 "Confirmer : tout supprimer définitivement": "Bestätigen: alles endgültig löschen",
-"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Ihre Keller, Weine, Fotos und Entnahmen werden gelöscht, ebenso Ihr Konto. Denken Sie daran, Ihre Daten vorher zu exportieren. Tippen Sie zur Bestätigung erneut auf die Taste.",
+"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte, et votre abonnement éventuel sera résilié. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Ihre Keller, Weine, Fotos und Entnahmen werden gelöscht, ebenso Ihr Konto, und ein eventuelles Abonnement wird gekündigt. Denken Sie daran, Ihre Daten vorher zu exportieren. Tippen Sie zur Bestätigung erneut auf die Taste.",
 "Suppression en cours…": "Wird gelöscht…",
 "La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste.": "Löschen fehlgeschlagen. Versuchen Sie es erneut oder schreiben Sie uns, wenn es weiterhin auftritt.",
 "Préparation du fichier…": "Datei wird vorbereitet…",
@@ -836,5 +836,9 @@
 "Mon compte": "Mein Konto",
 "Préférences et sécurité": "Einstellungen und Sicherheit",
 "Données et confidentialité": "Daten und Datenschutz",
-"Supprimer le compte": "Konto löschen"
+"Supprimer le compte": "Konto löschen",
+"Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "Um Scan und Empfehlungen zu nutzen, bestätigen Sie zuerst Ihre E-Mail-Adresse: Öffnen Sie den an {mail} gesendeten Link.",
+"Renvoyer l'e-mail de confirmation ?": "Bestätigungs-E-Mail erneut senden?",
+"E-mail envoyé. Ouvrez le lien, puis réessayez.": "E-Mail gesendet. Öffnen Sie den Link und versuchen Sie es dann erneut.",
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link aus der Anmeldung und versuchen Sie es dann erneut."
 }

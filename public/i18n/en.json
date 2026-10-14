@@ -802,7 +802,7 @@
 "Un e-mail vient d'être envoyé à {mail} pour choisir un nouveau mot de passe.": "An email has just been sent to {mail} to choose a new password.",
 "L'envoi a échoué. Réessayez dans un moment.": "Sending failed. Try again in a moment.",
 "Confirmer : tout supprimer définitivement": "Confirm: delete everything permanently",
-"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Your cellars, wines, photos and removals will be erased, along with your account. Remember to export your data first. Tap the button again to confirm.",
+"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte, et votre abonnement éventuel sera résilié. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Your cellars, wines, photos and removals will be erased, along with your account, and any subscription will be cancelled. Remember to export your data first. Tap the button again to confirm.",
 "Suppression en cours…": "Deleting…",
 "La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste.": "Deletion failed. Try again, or write to us if it persists.",
 "Préparation du fichier…": "Preparing the file…",
@@ -836,5 +836,9 @@
 "Mon compte": "My account",
 "Préférences et sécurité": "Preferences and security",
 "Données et confidentialité": "Data and privacy",
-"Supprimer le compte": "Delete the account"
+"Supprimer le compte": "Delete the account",
+"Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "To use scanning and advice, first confirm your email address: open the link sent to {mail}.",
+"Renvoyer l'e-mail de confirmation ?": "Resend the confirmation email?",
+"E-mail envoyé. Ouvrez le lien, puis réessayez.": "Email sent. Open the link, then try again.",
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "First confirm your email address with the link received when you signed up, then try again."
 }

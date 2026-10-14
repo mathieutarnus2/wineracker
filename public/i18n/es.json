@@ -802,7 +802,7 @@
 "Un e-mail vient d'être envoyé à {mail} pour choisir un nouveau mot de passe.": "Se acaba de enviar un correo a {mail} para elegir una nueva contraseña.",
 "L'envoi a échoué. Réessayez dans un moment.": "El envío ha fallado. Inténtalo de nuevo en un momento.",
 "Confirmer : tout supprimer définitivement": "Confirmar: eliminarlo todo definitivamente",
-"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Se borrarán tus bodegas, vinos, fotos y salidas, así como tu cuenta. Acuérdate de exportar tus datos antes. Toca de nuevo el botón para confirmar.",
+"Vos caves, vins, photos et sorties seront effacés, ainsi que votre compte, et votre abonnement éventuel sera résilié. Pensez à exporter vos données avant. Touchez de nouveau le bouton pour confirmer.": "Se borrarán tus bodegas, vinos, fotos y salidas, así como tu cuenta, y se cancelará tu suscripción si la tienes. Acuérdate de exportar tus datos antes. Toca de nuevo el botón para confirmar.",
 "Suppression en cours…": "Eliminando…",
 "La suppression a échoué. Réessayez, ou écrivez-nous si cela persiste.": "La eliminación ha fallado. Inténtalo de nuevo o escríbenos si persiste.",
 "Préparation du fichier…": "Preparando el archivo…",
@@ -836,5 +836,9 @@
 "Mon compte": "Mi cuenta",
 "Préférences et sécurité": "Preferencias y seguridad",
 "Données et confidentialité": "Datos y privacidad",
-"Supprimer le compte": "Eliminar la cuenta"
+"Supprimer le compte": "Eliminar la cuenta",
+"Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "Para usar el escaneo y los consejos, confirma primero tu dirección de correo: abre el enlace enviado a {mail}.",
+"Renvoyer l'e-mail de confirmation ?": "¿Reenviar el correo de confirmación?",
+"E-mail envoyé. Ouvrez le lien, puis réessayez.": "Correo enviado. Abre el enlace y vuelve a intentarlo.",
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Confirma primero tu dirección de correo con el enlace recibido al registrarte y vuelve a intentarlo."
 }

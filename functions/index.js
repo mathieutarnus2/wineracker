@@ -15,20 +15,57 @@ const REGION = "europe-west1";
 const { GRATUIT, PLANS } = require("./plans");
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-/* claude({ prompt, images: [{ type, data (base64) }] }) -> { text } */
-exports.claude = onCall({ region: REGION, invoker: "public", secrets: [CLE], timeoutSeconds: 180, memory: "512MiB", maxInstances: 20 }, async req => {
+/* claude({ modele, donnees, images, langue }) -> { text }
+   Le serveur construit lui-même la demande à partir des modèles de l'app (modeles.gen.js) : aucune demande libre n'est acceptée. */
+const MODELES_CLAUDE = require("./modeles.gen.js");
+const QUOTA_GLOBAL = defineInt("QUOTA_GLOBAL", { default: 3000 });   // appels à Claude par jour, tous comptes confondus
+const APPCHECK = defineString("APPCHECK", { default: "non", description: "« oui » pour n'accepter que les appels venant de l'app (Firebase App Check)" });
+const LANGUES_CLAUDE = { en: "anglais", de: "allemand", it: "italien", es: "espagnol" };
+const txt = (x, n) => (typeof x === "string" ? x.slice(0, n) : x == null ? null : String(x).slice(0, n));
+const nb = (x, mn, mx) => { const v = Number(x); return isFinite(v) && v >= mn && v <= mx ? v : null; };
+const ID = x => (typeof x === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(x) ? x : null);
+function lotPrix(l, max, ancien) {   // liste de vins pour les estimations de prix
+  if (!Array.isArray(l) || !l.length || l.length > max) throw new HttpsError("invalid-argument", "Demande invalide.");
+  return l.map(v => {
+    if (!v || !ID(v.id)) throw new HttpsError("invalid-argument", "Demande invalide.");
+    const o = { id: v.id, vin: txt(v.vin, 300) || "", millesime: nb(v.millesime, 1800, 2200), couleur: txt(v.couleur, 20), contenance: nb(v.contenance, 1, 3000) };
+    if (ancien) o.ancien = nb(v.ancien, 0, 1e6);
+    return o;
+  });
+}
+function construire(modele, d, nImages) {
+  const P = MODELES_CLAUDE(new Date().getFullYear());
+  switch (modele) {
+    case "etiquette": if (nImages !== 1) break; return P.etiquette();
+    case "cave": if (nImages < 1 || nImages > 4) break; return P.cave(nImages);
+    case "conseils": {
+      if (nImages || !d || typeof d !== "object") break;
+      return P.conseils({ nom: txt(d.nom, 200), domaine: txt(d.domaine, 200), appellation: txt(d.appellation, 200), region: txt(d.region, 120), pays: txt(d.pays, 80), couleur: txt(d.couleur, 40), millesime: nb(d.millesime, 1800, 2200), cepages: txt(d.cepages, 300), contenance_cl: nb(d.contenance_cl, 1, 3000) });
+    }
+    case "prix": if (nImages) break; return P.prix(lotPrix(d, 40, false));
+    case "valeurs": if (nImages) break; return P.valeurs(lotPrix(d, 30, true));
+  }
+  throw new HttpsError("invalid-argument", "Demande invalide.");
+}
+exports.claude = onCall({ region: REGION, invoker: "public", secrets: [CLE], timeoutSeconds: 180, memory: "512MiB", maxInstances: 20, enforceAppCheck: APPCHECK.value() === "oui" }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
-  const { prompt, images = [] } = req.data || {};
-  if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 60000) throw new HttpsError("invalid-argument", "Demande invalide.");
+  const t = req.auth.token;
+  if (t.firebase && t.firebase.sign_in_provider === "password" && t.email_verified !== true) throw new HttpsError("failed-precondition", "Adresse e-mail à confirmer.", { raison: "email_non_verifie" });
+  const { modele, donnees, images = [], langue } = req.data || {};
   if (!Array.isArray(images) || images.length > 4 || images.some(i => !i || !TYPES.includes(i.type) || typeof i.data !== "string" || i.data.length > 5e6)) throw new HttpsError("invalid-argument", "Image refusée.");
+  let prompt = construire(modele, donnees, images.length);
+  if (LANGUES_CLAUDE[langue]) prompt += `\n\nIMPORTANT : rédige tous les textes libres destinés à l'utilisateur (goût, service, apogée, plats, recettes, conseils, raisons, remarques, descriptions) en ${LANGUES_CLAUDE[langue]}. Ne traduis pas les valeurs imposées par le format demandé (identifiants, couleurs comme « rouge » ou « blanc », types, mots-clés), ni les noms propres de vins, domaines, appellations et régions.`;
 
-  // quota quotidien par utilisateur, pour maîtriser les coûts
-  const db = getFirestore(), jour = new Date().toISOString().slice(0, 10), ref = db.doc(`quotas/${req.auth.uid}`);
-  const offre = await db.doc(`offres/${req.auth.uid}`).get(), max = Math.max(QUOTA.value(), (offre.exists && offre.data().scansJour) || 0);   // le back-office peut en offrir plus
-  await db.runTransaction(async t => {
-    const s = await t.get(ref), d = s.exists ? s.data() : {}, n = d.jour === jour ? d.n || 0 : 0;
+  // quotas : par utilisateur (relevable depuis le back-office) et pour tout le service, pour maîtriser les coûts
+  const db = getFirestore(), jour = new Date().toISOString().slice(0, 10), ref = db.doc(`quotas/${req.auth.uid}`), refG = db.doc("quotas/_service");
+  const offre = await db.doc(`offres/${req.auth.uid}`).get(), max = Math.max(QUOTA.value(), (offre.exists && offre.data().scansJour) || 0);
+  await db.runTransaction(async tr => {
+    const [s, g] = await Promise.all([tr.get(ref), tr.get(refG)]);
+    const d = s.exists ? s.data() : {}, n = d.jour === jour ? d.n || 0 : 0, G = g.exists ? g.data() : {}, ng = G.jour === jour ? G.n || 0 : 0;
     if (n >= max) throw new HttpsError("resource-exhausted", "Limite quotidienne atteinte.");
-    t.set(ref, { jour, n: n + 1, total: (d.total || 0) + 1 });
+    if (ng >= QUOTA_GLOBAL.value()) { logger.error("Plafond quotidien du service atteint", ng); throw new HttpsError("resource-exhausted", "Service saturé pour aujourd'hui."); }
+    tr.set(ref, { jour, n: n + 1, total: (d.total || 0) + 1 });
+    tr.set(refG, { jour, n: ng + 1 });
   });
 
   const content = [...images.map(i => ({ type: "image", source: { type: "base64", media_type: i.type, data: i.data } })), { type: "text", text: prompt }];
@@ -48,12 +85,23 @@ exports.claude = onCall({ region: REGION, invoker: "public", secrets: [CLE], tim
   return { text };
 });
 
-/* Supprime le compte et toutes ses données (droit à l'effacement). */
-exports.supprimerCompte = onCall({ region: REGION, invoker: "public", timeoutSeconds: 120 }, async req => {
+/* Supprime le compte et toutes ses données (droit à l'effacement).
+   L'abonnement Stripe est résilié d'abord : si Stripe ne répond pas, rien n'est effacé, pour ne jamais laisser un prélèvement sans compte. */
+const STRIPE_CLE = defineSecret("STRIPE_SECRET_KEY");
+exports.supprimerCompte = onCall({ region: REGION, invoker: "public", timeoutSeconds: 120, secrets: [STRIPE_CLE] }, async req => {
   if (!req.auth) throw new HttpsError("unauthenticated", "Connexion requise.");
   const uid = req.auth.uid, db = getFirestore();
+  const abo = await db.doc(`abonnements/${uid}`).get(), customer = abo.exists && abo.data().customerId;
+  if (customer) {
+    try {
+      const s = new (require("stripe"))(STRIPE_CLE.value());
+      const subs = await s.subscriptions.list({ customer, status: "all", limit: 100 });
+      for (const sub of subs.data) if (!["canceled", "incomplete_expired"].includes(sub.status)) await s.subscriptions.cancel(sub.id, { invoice_now: false, prorate: false });
+      logger.info("Abonnements résiliés à la suppression du compte", uid, subs.data.length);
+    } catch (e) { logger.error("Résiliation Stripe impossible", uid, e.message); throw new HttpsError("unavailable", "La résiliation de l'abonnement a échoué. Réessayez dans un moment."); }
+  }
   await db.recursiveDelete(db.doc(`users/${uid}`));
-  await db.doc(`quotas/${uid}`).delete().catch(() => {});
+  for (const p of [`quotas/${uid}`, `abonnements/${uid}`, `offres/${uid}`]) await db.doc(p).delete().catch(() => {});
   await getAuth().deleteUser(uid);
   return { ok: true };
 });
@@ -91,3 +139,4 @@ exports.listeAttente = onRequest({ region: REGION, invoker: "public", cors: ORIG
   if (!s.exists) await ref.set({ email, langue, le: Date.now() });
   res.json({ ok: true });
 });
+exports._test = { construire };
