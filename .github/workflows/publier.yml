@@ -1,0 +1,42 @@
+# Publication automatique de l'app et de la page d'accueil (Firebase Hosting).
+# - chaque envoi sur « main » met à jour la version de TEST (adresse fixe, mêmes données que l'app réelle) ;
+# - chaque envoi sur « prod » met à jour la version EN LIGNE.
+# Connexion à Google sans clé : Workload Identity Federation (voir README, « Publication automatique »).
+name: Publier
+on:
+  push:
+    branches: [main, prod]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: publier-${{ github.ref_name }}
+  cancel-in-progress: true
+env:
+  PROJET: wineracker-2e52e
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/229981076704/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-deploy@wineracker-2e52e.iam.gserviceaccount.com
+      - name: Version de test
+        if: github.ref_name == 'main'
+        run: |
+          npx --yes firebase-tools@15 hosting:channel:deploy test --expires 30d --project "$PROJET" --json > sortie.json
+          echo "## Version de test" >> "$GITHUB_STEP_SUMMARY"
+          node -e 'const r=require("./sortie.json").result||{};for(const[k,v]of Object.entries(r))console.log(`- ${k} : ${v.url}`)' >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+      - name: Version en ligne
+        if: github.ref_name == 'prod'
+        run: npx --yes firebase-tools@15 deploy --only hosting --project "$PROJET" --non-interactive

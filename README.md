@@ -98,6 +98,14 @@ Pour l'instant, `landing/index.html` est une **page d'attente** (logo, liste d'a
 
 Le dossier `landing/` est publié sur un second site Firebase Hosting (cible `vitrine`, site `wineracker-com`), l'app reste sur la cible `app`. Les deux partent avec `firebase deploy --only hosting`. Les textes sont en français dans la page, les autres langues dans le script en bas de `landing/index.html`.
 
+## Publication automatique
+
+`.github/workflows/publier.yml` publie sans Cloud Shell :
+- envoi sur `main` → **version de test** (canal Firebase « test », adresse fixe `https://wineracker-2e52e--test-….web.app`, mêmes comptes et mêmes données que l'app réelle) ;
+- envoi sur `prod` (`git push origin main:prod`) → **version en ligne**.
+
+Seul le site est publié ainsi ; les fonctions serveur restent publiées depuis Cloud Shell. La connexion de GitHub à Google se fait sans clé (Workload Identity Federation, compte `github-deploy`), installée une fois avec `scripts/installer-publication.sh`. Pour que la connexion Google marche sur la version de test, son adresse doit figurer dans Authentication → Paramètres → Domaines autorisés.
+
 ## Développement local
 
 Avec Java installé, `npm run emulateurs` lance l'application sur `http://localhost:5000`, avec des comptes et une base de test : rien ne touche à la production.
