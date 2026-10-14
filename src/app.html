@@ -392,11 +392,11 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 #param .psub { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px }
 #param .psub h3 { margin: 0; font: 600 .78rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted) }
 #param .pligne { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap }
-#param details.plus summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; list-style: none }
-#param details.plus summary::-webkit-details-marker { display: none }
-#param details.plus summary::before { content: "+ " }
-#param details.plus[open] summary::before { content: "− " }
-#param details.plus[open] { display: flex; flex-direction: column; gap: 10px }
+#param details.depli summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; list-style: none }
+#param details.depli summary::-webkit-details-marker { display: none }
+#param details.depli summary::before { content: "+ " }
+#param details.depli[open] summary::before { content: "− " }
+#param details.depli[open] { display: flex; flex-direction: column; gap: 10px }
 .pnom { display: flex; gap: 8px; align-items: end }
 .pnom .lab { flex: 1 }
 .pnom input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 1rem; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink); width: 100%; min-width: 0 }
@@ -487,13 +487,13 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
           <button class="btn" id="catBtn">Voir le catalogue</button>
           <button class="btn" id="venteInv">Vins à vendre dans l'inventaire</button>
         </div>
-        <details class="plus"><summary>Comment mettre une bouteille en vente ?</summary><p class="meta">Pour proposer une bouteille : ouvrez sa fiche, puis Actions, « Mettre en vente ». Le catalogue montre ce qu'un acheteur verrait, sans vos emplacements ni vos prix d'achat.</p></details>
+        <details class="depli"><summary>Comment mettre une bouteille en vente ?</summary><p class="meta">Pour proposer une bouteille : ouvrez sa fiche, puis Actions, « Mettre en vente ». Le catalogue montre ce qu'un acheteur verrait, sans vos emplacements ni vos prix d'achat.</p></details>
       </div>
     </div>
     <div class="casier" id="p-cavesCard">
       <h3 class="ptitre">Mes caves</h3>
       <div class="stack" id="p-caves"></div>
-      <details class="plus"><summary>Créer une autre cave</summary>
+      <details class="depli"><summary>Créer une autre cave</summary>
         <div class="pnom">
           <label class="lab">Nouvelle cave<input id="p-newCave" maxlength="40" autocomplete="off" placeholder="ex. Maison de campagne"></label>
           <button class="btn" id="p-newCaveOk">Créer</button>
