@@ -17,4 +17,5 @@ gcloud iam workload-identity-pools providers describe github --location global -
     --attribute-condition "assertion.repository=='$DEPOT'" --project $P
 gcloud iam service-accounts add-iam-policy-binding $SA --project $P --role roles/iam.workloadIdentityUser \
   --member "principalSet://iam.googleapis.com/projects/$NUM/locations/global/workloadIdentityPools/github/attribute.repository/$DEPOT" -q >/dev/null
+npx --yes firebase-tools@15 hosting:sites:get wineracker-staging --project $P >/dev/null 2>&1 || npx --yes firebase-tools@15 hosting:sites:create wineracker-staging --project $P
 echo "C'est prêt : GitHub peut publier le site."

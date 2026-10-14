@@ -101,10 +101,10 @@ Le dossier `landing/` est publié sur un second site Firebase Hosting (cible `vi
 ## Publication automatique
 
 `.github/workflows/publier.yml` publie sans Cloud Shell :
-- envoi sur `main` → **version de test** (canal Firebase « test », adresse fixe `https://wineracker-2e52e--test-….web.app`, mêmes comptes et mêmes données que l'app réelle) ;
-- envoi sur `prod` (`git push origin main:prod`) → **version en ligne**.
+- envoi sur `main` → **version de test** : `https://staging.wineracker.com` (site `wineracker-staging`, repère « TEST » en haut à droite, mêmes comptes et mêmes données que l'app réelle) ;
+- envoi sur `prod` (`git push origin main:prod`) → **version en ligne** : app.wineracker.com et wineracker.com.
 
-Seul le site est publié ainsi ; les fonctions serveur restent publiées depuis Cloud Shell. La connexion de GitHub à Google se fait sans clé (Workload Identity Federation, compte `github-deploy`), installée une fois avec `scripts/installer-publication.sh`. Pour que la connexion Google marche sur la version de test, son adresse doit figurer dans Authentication → Paramètres → Domaines autorisés.
+Seul le site est publié ainsi ; les fonctions serveur restent publiées depuis Cloud Shell. La connexion de GitHub à Google se fait sans clé (Workload Identity Federation, compte `github-deploy`), installée une fois avec `scripts/installer-publication.sh`. Pour que la connexion Google marche sur la version de test, `staging.wineracker.com` doit figurer dans Authentication → Paramètres → Domaines autorisés.
 
 ## Développement local
 

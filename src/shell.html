@@ -68,6 +68,7 @@
 </style>
 </head>
 <body>
+<script>if (/staging|--/.test(location.hostname)) document.write('<div style="position:fixed;z-index:9999;top:calc(env(safe-area-inset-top,0px) + 6px);right:6px;background:#d99f3c;color:#2a1a05;font:700 11px/1 system-ui,sans-serif;letter-spacing:.08em;padding:5px 8px;border-radius:6px;pointer-events:none">TEST</div>');   // repère visible sur la version de test</script>
 <div class="boot" id="boot" role="status" aria-label="Chargement"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="b b1 rouge" cx="30" cy="30" r="16.3"/><circle class="b b2 rouge" cx="30" cy="30" r="16.3"/><circle class="b b3 vide" cx="30" cy="30" r="14.6"/><circle class="b b4 or" cx="30" cy="30" r="16.3"/></svg></div>
 
 <main class="auth" id="auth" hidden>
