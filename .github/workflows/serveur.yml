@@ -1,0 +1,35 @@
+# Publication automatique du serveur (fonctions et règles de la base) quand il change sur « main ».
+# Le serveur est commun à la version de test et à la version en ligne.
+name: Serveur
+on:
+  push:
+    branches: [main]
+    paths: ["functions/**", "functions-paiement/**", "firestore.rules", "firestore.indexes.json", ".github/workflows/serveur.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: serveur
+  cancel-in-progress: false
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+      - run: npm ci --prefix functions && npm ci --prefix functions-paiement
+      - name: Réglages privés (adresses e-mail)
+        env:
+          ENV_FONCTIONS: ${{ secrets.ENV_FONCTIONS }}
+        run: |
+          test -n "$ENV_FONCTIONS" || { echo "::error::Secret ENV_FONCTIONS manquant (Settings > Secrets and variables > Actions)"; exit 1; }
+          printf '%s\n' "$ENV_FONCTIONS" > functions/.env.wineracker-2e52e
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/229981076704/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-deploy@wineracker-2e52e.iam.gserviceaccount.com
+      - run: npx --yes firebase-tools@15 deploy --only functions,firestore:rules --project wineracker-2e52e --non-interactive

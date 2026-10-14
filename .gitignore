@@ -2,6 +2,9 @@ node_modules/
 functions/node_modules/
 *.log
 .firebase/
-functions/.env*
+functions/.env.*
+functions-paiement/.env.*
+!functions/.env
+!functions-paiement/.env
 sauvegarde*.json
 public/js/*.map
