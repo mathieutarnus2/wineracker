@@ -51,7 +51,8 @@ exports.adminComptes = onCall(OPTS, async req => {
       scans: { jour: q.jour === jour ? q.n || 0 : 0, total: q.total || 0 },
     };
   });
-  return { comptes, plans: Object.fromEntries(Object.entries(PLANS).map(([k, P]) => [k, { nom: P.nom, limite: P.limite, centimes: P.centimes }])), maintenant: Date.now() };
+  const attente = (await db.collection("attente").get()).docs.map(d => d.data()).sort((x, y) => (y.le || 0) - (x.le || 0));
+  return { attente, comptes, plans: Object.fromEntries(Object.entries(PLANS).map(([k, P]) => [k, { nom: P.nom, limite: P.limite, centimes: P.centimes }])), maintenant: Date.now() };
 });
 
 /* Offrir une formule (pour N mois, ou sans limite), et/ou des appels à Claude en plus par jour. */

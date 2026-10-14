@@ -72,6 +72,7 @@ function kpis() {
     k("Accès offerts", String(offerts.length)),
     k("Actifs 30 jours", String(C.filter(c => c.vu > Date.now() - 30 * 864e5).length)),
     k("Bouteilles", C.reduce((s, c) => s + c.bouteilles, 0).toLocaleString("fr-FR"), `${C.filter(c => etat(c) === "limite").length} gratuits à la limite`),
+    k("Liste d'attente", String((D.attente || []).length), (D.attente || []).length ? `dernier : ${dt(D.attente[0].le)}` : "page d'accueil"),
     k("Appels à Claude", String(C.reduce((s, c) => s + c.scans.jour, 0)), `aujourd'hui · ${C.reduce((s, c) => s + c.scans.total, 0).toLocaleString("fr-FR")} au total`),
   );
 }
@@ -96,6 +97,12 @@ function liste() {
 }
 $("q").addEventListener("input", () => D && liste());
 $("filtre").addEventListener("change", () => D && liste());
+$("csvAttente").addEventListener("click", () => {
+  if (!D) return;
+  const lignes = ["email;langue;inscrit", ...(D.attente || []).map(x => [x.email, x.langue || "", dt(x.le)].map(v => `"${String(v).replace(/"/g, '""')}"`).join(";"))];
+  const a = h("a", { href: URL.createObjectURL(new Blob(["\ufeff" + lignes.join("\n")], { type: "text/csv" })), download: `wineracker-liste-attente-${new Date().toISOString().slice(0, 10)}.csv` });
+  document.body.append(a); a.click(); a.remove();
+});
 $("csv").addEventListener("click", () => {
   if (!D) return;
   const L = filtres(), esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;

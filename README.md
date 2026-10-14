@@ -94,6 +94,8 @@ L'application existe en français, anglais, allemand, italien et espagnol.
 
 ## Page d'accueil (wineracker.com)
 
+Pour l'instant, `landing/index.html` est une **page d'attente** (logo, liste d'attente par e-mail via la fonction `listeAttente`, rangée dans `attente/`, exportable depuis le back-office). Le site complet est dans `landing-src/accueil.html` ; il est publié chiffré (`landing/accueil.enc.json`) et ne s'ouvre qu'avec le mot de passe, saisi via « Se connecter via mot de passe ». Après une modification du site complet : `VITRINE_MDP='…' node scripts/chiffrer-vitrine.mjs`. Le jour du lancement, remplacez `landing/index.html` par `landing-src/accueil.html`.
+
 Le dossier `landing/` est publié sur un second site Firebase Hosting (cible `vitrine`, site `wineracker-com`), l'app reste sur la cible `app`. Les deux partent avec `firebase deploy --only hosting`. Les textes sont en français dans la page, les autres langues dans le script en bas de `landing/index.html`.
 
 ## Développement local

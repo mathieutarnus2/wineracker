@@ -74,3 +74,20 @@ exports.etatAbonnement = onCall({ region: REGION, invoker: "public" }, async req
 });
 
 Object.assign(exports, require("./admin"));
+
+/* Liste d'attente de la page d'accueil : on garde l'e-mail, la langue et la date. */
+const { onRequest } = require("firebase-functions/v2/https");
+const ORIGINES = ["https://wineracker.com", "https://www.wineracker.com", "https://wineracker-com.web.app", "https://wineracker-com.firebaseapp.com"];
+exports.listeAttente = onRequest({ region: REGION, invoker: "public", cors: ORIGINES, maxInstances: 5, memory: "256MiB" }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
+  const b = typeof req.body === "object" && req.body ? req.body : {};
+  if (b.site) { res.json({ ok: true }); return; }   // champ piège : rempli seulement par les robots
+  const email = String(b.email || "").trim().toLowerCase();
+  if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { res.status(400).json({ ok: false, erreur: "email" }); return; }
+  const langue = ["fr", "en", "de", "it", "es"].includes(b.langue) ? b.langue : "";
+  const id = email.replace(/[^a-z0-9@._+-]/g, "_").replace(/\//g, "_");
+  const ref = getFirestore().doc(`attente/${id}`);
+  const s = await ref.get();
+  if (!s.exists) await ref.set({ email, langue, le: Date.now() });
+  res.json({ ok: true });
+});
