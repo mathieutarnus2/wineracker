@@ -32,6 +32,9 @@ button { cursor: pointer }
 header { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px }
 .trow { display: flex; align-items: center; gap: 10px }
 .trow h1 { min-width: 0 }
+.crayon { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; padding: 0 }
+.crayon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round }
+.crayon:hover { border-color: var(--muted) }
 .csw { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center }
 .csw svg { width: 18px; height: 18px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .csw select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px }
@@ -410,6 +413,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
     <div>
       <div class="trow">
         <h1 id="titre">Ma cave à vin</h1>
+        <button type="button" class="crayon" id="titreEdit" hidden aria-label="Modifier la cave" title="Modifier la cave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button>
         <span class="csw" id="csw" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><select id="caveSel" aria-label="Changer de cave"></select></span>
       </div>
       <p class="sub" id="sub">Ouverture de la cave…</p>
@@ -1064,6 +1068,7 @@ function render() {
   $("tabInv").setAttribute("aria-pressed", String(tab === "inv"));
   $("tabSuivi").setAttribute("aria-pressed", String(tab === "suivi"));
   $("plan").hidden = tab !== "plan"; $("inv").hidden = tab !== "inv"; $("suivi").hidden = tab !== "suivi"; $("classer").hidden = tab !== "inv";
+  $("titreEdit").hidden = tab !== "param" || !loaded || !canWrite;
   const fb = $("filtBtn"); fb.hidden = tab === "suivi"; $("tools").hidden = !filtres || tab === "suivi" || tab === "param";
   fb.setAttribute("aria-expanded", String(filtres)); fb.textContent = tr(filtres ? "Masquer" : filtreActif() ? "Filtres (actifs)" : "Filtres");
 
@@ -1898,6 +1903,7 @@ function rowsCfg() {
   if (cur) { const e = $("cfgRows").querySelector(".kblock.edit"); if (e) e.scrollIntoView({ block: "nearest" }); }
 }
 $("cfgBtn").addEventListener("click", ouvrirCfg);
+$("titreEdit").addEventListener("click", ouvrirCfg);
 /* ---------- réorganisation par région et appellation ----------
    Le plan est recalculé à chaque fois à partir de l'état réel : rien n'est mémorisé à part les réglages.
    Chaque déplacement coché est écrit tout de suite, donc l'appli et la cave restent d'accord même si on s'arrête en route. */
