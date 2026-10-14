@@ -68,6 +68,21 @@
 </style>
 </head>
 <body>
+<script>
+/* Version de test seulement : un mot de passe avant d'afficher quoi que ce soit (on ne garde ici que son empreinte). */
+(() => {
+  if (!/staging|--/.test(location.hostname)) return;
+  const H = "1eab2fbd0da6e254f00a312d4c6dd7c0f55af9140a92e791d6640e9095fb7e26";
+  try { if (localStorage.getItem("staging") === H) return; } catch (e) {}
+  const empreinte = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, "0")).join("");
+  document.write('<div id="gate" style="position:fixed;inset:0;z-index:10000;background:#fdfcf6;display:grid;place-items:center;padding:20px;font:16px/1.4 system-ui,sans-serif;color:#241a17"><form id="gateF" style="width:100%;max-width:20rem;display:flex;flex-direction:column;gap:12px;text-align:center"><img src="img/symbole.svg" alt="" style="width:56px;height:56px;margin:0 auto"><b style="font-size:1.1rem">Version de test</b><input id="gateM" type="password" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe" style="padding:11px 12px;border:1px solid #e7dfd0;border-radius:10px;font:inherit"><button style="padding:11px;border:0;border-radius:999px;background:#701520;color:#fff8ee;font:600 1rem system-ui,sans-serif">Entrer</button><span id="gateE" style="color:#a8242f" hidden>Mot de passe incorrect.</span></form></div><style>html,body{overflow:hidden}</style>');
+  document.getElementById("gateF").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (await empreinte(document.getElementById("gateM").value) === H) { try { localStorage.setItem("staging", H); } catch (x) {} location.reload(); }
+    else document.getElementById("gateE").hidden = false;
+  });
+})();
+</script>
 <script>if (/staging|--/.test(location.hostname)) document.write('<div style="position:fixed;z-index:9999;top:calc(env(safe-area-inset-top,0px) + 6px);right:6px;background:#d99f3c;color:#2a1a05;font:700 11px/1 system-ui,sans-serif;letter-spacing:.08em;padding:5px 8px;border-radius:6px;pointer-events:none">TEST</div>');   // repère visible sur la version de test</script>
 <div class="boot" id="boot" role="status" aria-label="Chargement"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="b b1 rouge" cx="30" cy="30" r="16.3"/><circle class="b b2 rouge" cx="30" cy="30" r="16.3"/><circle class="b b3 vide" cx="30" cy="30" r="14.6"/><circle class="b b4 or" cx="30" cy="30" r="16.3"/></svg></div>
 
