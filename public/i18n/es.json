@@ -533,7 +533,7 @@
 "Votre formule actuelle accueille un nombre illimité de bouteilles.": "Tu plan actual admite un número ilimitado de botellas.",
 "Votre formule actuelle va jusqu'à {n} bouteilles.": "Tu plan actual llega hasta {n} botellas.",
 "Pour aller au-delà, passez à la formule supérieure :": "Para ir más allá, pasa al plan superior:",
-"Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Pago seguro con Stripe, renovado cada año. Sin permanencia: cancela cuando quieras desde Ajustes, Suscripción. Todas tus botellas siguen siendo consultables, incluso sin plan.",
+"Prix TTC, réglés en une fois pour l'année. Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Precios con IVA, pagados de una vez para todo el año. Pago seguro con Stripe, renovado cada año. Sin permanencia: cancela cuando quieras desde Ajustes, Suscripción. Todas tus botellas siguen siendo consultables, incluso sin plan.",
 "Plus tard": "Más tarde",
 "bouteilles": "botellas",
 "Impossible de vérifier votre formule pour le moment (pas de connexion ?).": "No se puede comprobar tu plan en este momento (¿sin conexión?).",
@@ -840,5 +840,7 @@
 "Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "Para usar el escaneo y los consejos, confirma primero tu dirección de correo: abre el enlace enviado a {mail}.",
 "Renvoyer l'e-mail de confirmation ?": "¿Reenviar el correo de confirmación?",
 "E-mail envoyé. Ouvrez le lien, puis réessayez.": "Correo enviado. Abre el enlace y vuelve a intentarlo.",
-"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Confirma primero tu dirección de correo con el enlace recibido al registrarte y vuelve a intentarlo."
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Confirma primero tu dirección de correo con el enlace recibido al registrarte y vuelve a intentarlo.",
+" / mois": " / mes",
+"soit {prix} payés une fois par an": "es decir, {prix} pagados una vez al año"
 }

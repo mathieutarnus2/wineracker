@@ -486,6 +486,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
 .plan-reco { position: absolute; top: -10px; left: 10px; background: var(--accent); color: var(--accent-ink); font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px }
 .plan-prix { font: 400 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums }
 .plan-prix small { font: 500 .8rem var(--body); color: var(--muted) }
+.plan-an { font-size: .78rem; color: var(--muted); margin-top: -2px }
 .plan .btn { margin-top: auto }
 .psec { font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-top: 6px }
 .kblock.edit { border: 2px solid var(--accent); background: var(--surface) }
@@ -666,7 +667,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
         <div><button class="btn small danger" id="cptDel">Supprimer mon compte et mes données…</button></div>
       </div>
     </div>
-    <p class="signature"><img src="img/symbole.svg" alt="" width="22" height="22"><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="97" height="18"></picture><span>v2026.10.14</span></p>
+    <p class="signature"><img src="img/symbole.svg" alt="" width="22" height="22"><picture><source srcset="img/wineracker-sombre.png" media="(prefers-color-scheme: dark)"><img src="img/wineracker.png" alt="Wineracker" width="97" height="18"></picture><span>v2026.10.15</span></p>
   </section>
 </div>
 
@@ -837,6 +838,7 @@ function tx(fr, v) {   // texte avec variables {nom} ; « singulier|pluriel » c
   return v ? s.replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? "" : String(v[k]))) : s;
 }
 let eur = new Intl.NumberFormat(LOCALE(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+let eur2 = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function traduireDom(root) {   // textes et attributs fixes du HTML
   if (LANG === "fr") return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && /^(SCRIPT|STYLE)$/.test(n.parentElement.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
@@ -856,6 +858,7 @@ function appliquerLangue(L) {
   Object.defineProperty(Node.prototype, "textContent", { configurable: true, enumerable: tc.enumerable, get: tc.get, set(v) { tc.set.call(this, typeof v === "string" ? tr(v) : v); } });
   document.documentElement.lang = LANG;
   eur = new Intl.NumberFormat(LOCALE(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  eur2 = new Intl.NumberFormat(LOCALE(), { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   traduireTables(); traduireDom(document.body);
 }
 
@@ -2151,7 +2154,7 @@ function offres(o) {
     } }, actuel ? "Votre formule" : petit ? "Trop petite" : "Choisir");
     return h("div", { class: "plan" + (p === conseille && !actuel ? " reco" : "") },
       p === conseille && !actuel ? h("span", { class: "plan-reco" }, "Conseillée pour vous") : null,
-      h("b", null, P.nom), h("div", { class: "plan-prix" }, P.prix, h("small", null, " / an")),
+      h("b", null, P.nom), h("div", { class: "plan-prix" }, eur2.format(Math.round(P.centimes / 12) / 100), h("small", null, " / mois")), h("span", { class: "plan-an" }, tx("soit {prix} payés une fois par an", { prix: eur2.format(P.centimes / 100) })),
       h("span", { class: "meta" }, P.limite >= 1e9 ? "Bouteilles illimitées" : tx("Jusqu'à {n} bouteilles", { n: P.limite })), b);
   };
   $("slotBody").replaceChildren(...[
@@ -2159,7 +2162,7 @@ function offres(o) {
     h("h2", null, o.besoin ? "Il vous faut plus de place" : "Les formules"),
     h("p", null, gratuit ? tx("La version gratuite accueille jusqu'à {n} bouteilles.", { n: C.GRATUIT }) + (o.besoin ? " " + tx("Pour en ajouter une de plus, choisissez une formule annuelle :|Pour en ajouter {n} de plus, choisissez une formule annuelle :", { n: o.besoin }) : "") : (C.limite(o.a) >= 1e9 ? tr("Votre formule actuelle accueille un nombre illimité de bouteilles.") : tx("Votre formule actuelle va jusqu'à {n} bouteilles.", { n: C.limite(o.a) })) + (o.besoin ? " " + tr("Pour aller au-delà, passez à la formule supérieure :") : "")),
     h("div", { class: "plans" }, Object.keys(C.PLANS).map(carte)),
-    h("p", { class: "meta" }, "Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule."),
+    h("p", { class: "meta" }, "Prix TTC, réglés en une fois pour l'année. Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule."),
     h("div", { class: "foot" }, h("div", { class: "right" }, h("button", { type: "button", class: "btn", onclick: () => dlg.close() }, "Plus tard")))].filter(Boolean));
   if (!dlg.open) montrer(dlg);
 }
@@ -2172,7 +2175,7 @@ async function majAbonnement() {
   else if (a.statut === "offert") $("p-abo").textContent = (a.plan === "illimite" && !a.fin ? tr("Accès complet offert") : tx("Formule {nom} offerte", { nom: C.PLANS[a.plan] ? C.PLANS[a.plan].nom : "" })) + pTxt + "." + (a.fin ? " " + tx("Offerte jusqu'au {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "");
   else if (C.actif(a)) {
     const P = C.PLANS[a.plan];
-    $("p-abo").textContent = tx("Formule {nom}, {prix} par an", { nom: P.nom, prix: P.prix }) + pTxt + "." + (a.fin ? " " + tx(a.annule ? "Résiliée : elle reste active jusqu'au {date}." : "Renouvellement le {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "") + (a.statut === "past_due" ? " " + tr("Le dernier paiement a échoué : mettez à jour votre carte.") : "");
+    $("p-abo").textContent = tx("Formule {nom}, {prix} par an", { nom: P.nom, prix: eur2.format(P.centimes / 100) }) + pTxt + "." + (a.fin ? " " + tx(a.annule ? "Résiliée : elle reste active jusqu'au {date}." : "Renouvellement le {date}.", { date: new Date(a.fin).toLocaleDateString(LOCALE()) }) : "") + (a.statut === "past_due" ? " " + tr("Le dernier paiement a échoué : mettez à jour votre carte.") : "");
     btns.push(h("button", { class: "btn", onclick: async e => { e.target.disabled = true; try { await C.portail(); } catch (er) { e.target.disabled = false; toast("L'espace abonnement n'a pas pu s'ouvrir. Réessayez."); } } }, "Gérer mon abonnement"));
   } else {
     $("p-abo").textContent = tr("Version gratuite") + pTxt + "." + (t != null && t >= lim ? " " + tr("Limite atteinte : vous pouvez consulter et sortir vos bouteilles, mais plus en ajouter.") : "");

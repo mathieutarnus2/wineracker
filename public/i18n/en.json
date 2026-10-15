@@ -533,7 +533,7 @@
 "Votre formule actuelle accueille un nombre illimité de bouteilles.": "Your current plan holds an unlimited number of bottles.",
 "Votre formule actuelle va jusqu'à {n} bouteilles.": "Your current plan goes up to {n} bottles.",
 "Pour aller au-delà, passez à la formule supérieure :": "To go further, move up to the next plan:",
-"Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Secure payment by Stripe, renewed every year. No commitment: cancel whenever you like from Settings, Subscription. All your bottles remain viewable, even without a plan.",
+"Prix TTC, réglés en une fois pour l'année. Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Prices include VAT, paid once for the year. Secure payment by Stripe, renewed every year. No commitment: cancel whenever you like from Settings, Subscription. All your bottles remain viewable, even without a plan.",
 "Plus tard": "Later",
 "bouteilles": "bottles",
 "Impossible de vérifier votre formule pour le moment (pas de connexion ?).": "Unable to check your plan right now (no connection?).",
@@ -840,5 +840,7 @@
 "Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "To use scanning and advice, first confirm your email address: open the link sent to {mail}.",
 "Renvoyer l'e-mail de confirmation ?": "Resend the confirmation email?",
 "E-mail envoyé. Ouvrez le lien, puis réessayez.": "Email sent. Open the link, then try again.",
-"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "First confirm your email address with the link received when you signed up, then try again."
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "First confirm your email address with the link received when you signed up, then try again.",
+" / mois": " / month",
+"soit {prix} payés une fois par an": "i.e. {prix} paid once a year"
 }

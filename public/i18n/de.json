@@ -533,7 +533,7 @@
 "Votre formule actuelle accueille un nombre illimité de bouteilles.": "Ihr aktueller Tarif fasst unbegrenzt viele Flaschen.",
 "Votre formule actuelle va jusqu'à {n} bouteilles.": "Ihr aktueller Tarif reicht bis {n} Flaschen.",
 "Pour aller au-delà, passez à la formule supérieure :": "Für mehr wechseln Sie zum nächsthöheren Tarif:",
-"Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Sichere Zahlung über Stripe, jährlich verlängert. Ohne Bindung: Kündigen Sie jederzeit unter Einstellungen, Abonnement. Alle Ihre Flaschen bleiben einsehbar, auch ohne Tarif.",
+"Prix TTC, réglés en une fois pour l'année. Paiement sécurisé par Stripe, renouvelé chaque année. Sans engagement : vous résiliez quand vous voulez depuis Réglages, Abonnement. Toutes vos bouteilles restent consultables, même sans formule.": "Preise inkl. MwSt., einmal für das ganze Jahr bezahlt. Sichere Zahlung über Stripe, jährlich verlängert. Ohne Bindung: Kündigen Sie jederzeit unter Einstellungen, Abonnement. Alle Ihre Flaschen bleiben einsehbar, auch ohne Tarif.",
 "Plus tard": "Später",
 "bouteilles": "Flaschen",
 "Impossible de vérifier votre formule pour le moment (pas de connexion ?).": "Ihr Tarif kann gerade nicht geprüft werden (keine Verbindung?).",
@@ -840,5 +840,7 @@
 "Pour utiliser le scan et les conseils, confirmez d'abord votre adresse e-mail : ouvrez le lien reçu à {mail}.": "Um Scan und Empfehlungen zu nutzen, bestätigen Sie zuerst Ihre E-Mail-Adresse: Öffnen Sie den an {mail} gesendeten Link.",
 "Renvoyer l'e-mail de confirmation ?": "Bestätigungs-E-Mail erneut senden?",
 "E-mail envoyé. Ouvrez le lien, puis réessayez.": "E-Mail gesendet. Öffnen Sie den Link und versuchen Sie es dann erneut.",
-"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link aus der Anmeldung und versuchen Sie es dann erneut."
+"Confirmez d'abord votre adresse e-mail, avec le lien reçu à l'inscription, puis réessayez.": "Bestätigen Sie zuerst Ihre E-Mail-Adresse über den Link aus der Anmeldung und versuchen Sie es dann erneut.",
+" / mois": " / Monat",
+"soit {prix} payés une fois par an": "also {prix}, einmal jährlich bezahlt"
 }

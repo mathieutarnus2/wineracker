@@ -136,7 +136,7 @@ Avant une ouverture au public, il faudra ajouter des **mentions légales**, une 
 
 ## Abonnement (Stripe)
 
-- 50 bouteilles gratuites, puis trois formules annuelles : Cave 100 (5,99 €), Cave 200 (9,90 €), Grande cave (19,90 €, illimitée). Les formules sont dans `functions-paiement/plans.js` (et leur affichage dans `src/firebase.js`).
+- 50 bouteilles gratuites, puis trois formules annuelles : Cave 100 (9,99 €), Cave 200 (14,99 €), Grande cave (19,99 €, illimitée). Les formules sont dans `functions-paiement/plans.js` (et leur affichage dans `src/firebase.js`).
 - Les fonctions Stripe sont dans `functions-paiement/` (codebase « paiement »), publiées à part : `npm run deploy:paiement`.
 - L'état d'un abonnement n'est écrit que par le serveur, dans `abonnements/{uid}`, après confirmation de Stripe (webhook). L'application le lit via la fonction `etatAbonnement`.
 - `COMPTES_OFFERTS` (paramètre des fonctions) : e-mails qui ont la version complète sans payer.

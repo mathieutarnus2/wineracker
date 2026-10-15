@@ -299,9 +299,9 @@ async function importer(file) {
 
 /* ---------- abonnement : 50 bouteilles gratuites, puis une formule annuelle (Stripe) ---------- */
 const PLANS = {
-  cave100: { nom: "Cave 100", limite: 100, prix: "5,99 €" },
-  cave200: { nom: "Cave 200", limite: 200, prix: "9,90 €" },
-  illimite: { nom: "Grande cave", limite: 1e9, prix: "19,90 €" },
+  cave100: { nom: "Cave 100", limite: 100, centimes: 999 },
+  cave200: { nom: "Cave 200", limite: 200, centimes: 1499 },
+  illimite: { nom: "Grande cave", limite: 1e9, centimes: 1999 },
 };
 const GRATUIT = 50;
 const fnEtat = httpsCallable(fns, "etatAbonnement"), fnPayer = httpsCallable(fns, "creerPaiement"), fnPortail = httpsCallable(fns, "portailAbonnement");

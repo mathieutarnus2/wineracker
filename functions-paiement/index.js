@@ -28,10 +28,12 @@ async function prixDe(s, plan) {
   if (L.data.length) {
     const pr = L.data[0], prod = pr.product;   // produits créés avant l'ajout du code fiscal : on le complète
     if (prod && typeof prod === "object" && !prod.tax_code) await s.products.update(prod.id, { tax_code: CODE_FISCAL });
-    return pr;
+    if (pr.unit_amount === P.centimes) return pr;
+    // le tarif a changé : nouveau prix sur le même produit ; la « lookup key » passe au nouveau prix, les abonnés actuels gardent l'ancien
+    return s.prices.create({ product: typeof prod === "object" ? prod.id : prod, currency: "eur", unit_amount: P.centimes, recurring: { interval: "year" }, lookup_key: P.cle, transfer_lookup_key: true, tax_behavior: "inclusive", nickname: P.nom, metadata: { plan } });
   }
-  const produit = await s.products.create({ name: `Wineracker · ${P.nom}`, tax_code: CODE_FISCAL, description: P.limite < 1e9 ? `Jusqu'à ${P.limite} bouteilles, un an` : "Bouteilles illimitées, un an" });
-  return s.prices.create({ product: produit.id, currency: "eur", unit_amount: P.centimes, recurring: { interval: "year" }, lookup_key: P.cle, tax_behavior: "inclusive", nickname: P.nom });
+  const produit = await s.products.create({ name: `Wineracker · ${P.nom}`, tax_code: CODE_FISCAL, metadata: { plan }, description: P.limite < 1e9 ? `Jusqu'à ${P.limite} bouteilles, un an` : "Bouteilles illimitées, un an" });
+  return s.prices.create({ product: produit.id, currency: "eur", unit_amount: P.centimes, recurring: { interval: "year" }, lookup_key: P.cle, tax_behavior: "inclusive", nickname: P.nom, metadata: { plan } });
 }
 function origine(req) {   // l'adresse de retour après paiement : uniquement nos propres sites
   const o = req.rawRequest && req.rawRequest.headers.origin, projet = process.env.GCLOUD_PROJECT;
@@ -74,9 +76,9 @@ exports.creerPaiement = onCall({ region: REGION, invoker: "public", secrets: [CL
 async function portail(s, customer, site) {
   // une configuration de l'espace client, créée une fois : changer de formule, résilier, moyens de paiement, factures
   const ref = db().doc("systeme/stripe"), snap = await ref.get();
-  let conf = snap.exists && snap.data().portail;
+  const prix = await Promise.all(Object.keys(PLANS).map(p => prixDe(s, p))), sig = prix.map(p => p.id).join(",");
+  let conf = snap.exists && snap.data().prixPortail === sig && snap.data().portail;   // refaite quand les tarifs changent
   if (!conf) {
-    const prix = await Promise.all(Object.keys(PLANS).map(p => prixDe(s, p)));
     const c = await s.billingPortal.configurations.create({
       business_profile: { headline: "Wineracker : gérez votre abonnement" },
       features: {
@@ -87,7 +89,7 @@ async function portail(s, customer, site) {
         subscription_update: { enabled: true, default_allowed_updates: ["price"], proration_behavior: "create_prorations", products: prix.map(p => ({ product: typeof p.product === "string" ? p.product : p.product.id, prices: [p.id] })) },
       },
     });
-    conf = c.id; await ref.set({ portail: conf }, { merge: true });
+    conf = c.id; await ref.set({ portail: conf, prixPortail: sig }, { merge: true });
   }
   return s.billingPortal.sessions.create({ customer, return_url: site, configuration: conf, locale: "fr" });
 }
@@ -102,7 +104,7 @@ exports.portailAbonnement = onCall({ region: REGION, invoker: "public", secrets:
 /* Ce que l'on retient d'un abonnement Stripe */
 function etatDe(sub) {
   const item = sub.items && sub.items.data && sub.items.data[0], cle = item && item.price && item.price.lookup_key;
-  const plan = Object.keys(PLANS).find(p => PLANS[p].cle === cle) || (sub.metadata && sub.metadata.plan) || null;
+  const plan = Object.keys(PLANS).find(p => PLANS[p].cle === cle) || (item && item.price && item.price.metadata && PLANS[item.price.metadata.plan] ? item.price.metadata.plan : null) || (sub.metadata && sub.metadata.plan) || null;
   const fin = sub.current_period_end || (item && item.current_period_end) || null;   // l'emplacement dépend de la version de l'API Stripe
   return { plan, statut: sub.status, fin: fin ? fin * 1000 : null, annule: !!sub.cancel_at_period_end, subscriptionId: sub.id, customerId: typeof sub.customer === "string" ? sub.customer : sub.customer.id, maj: Date.now() };
 }
