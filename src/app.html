@@ -84,8 +84,10 @@ h1 { font: 400 clamp(2.2rem, 7vw, 3.4rem)/1 var(--display); margin: 0; text-wrap
 .row.top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .row.top select { width: 100%; min-width: 0 }
 .row.top #q { width: 100% }
-.row.sub { flex-wrap: nowrap }
-.row.sub select { flex: 1 1 0; min-width: 0 }
+.row.sub { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+.row.sub select { min-width: 0; width: 100% }
+.row.sub #fAnnee { grid-column: 1 / -1 }
+@media (min-width: 600px) { .row.sub { grid-template-columns: repeat(3, minmax(0, 1fr)) } .row.sub #fAnnee { grid-column: auto } }
 .chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 12px; font-size: .9rem; display: inline-flex; align-items: center; gap: 7px }
 .chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c) }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
@@ -461,6 +463,7 @@ input, select, textarea { font-size: 16px }   /* en dessous de 16 px, l'iPhone z
     <div class="row sub">
       <select id="fRegion" aria-label="Région"><option value="">Toutes les régions</option></select>
       <select id="fAppel" aria-label="Appellation"><option value="">Toutes les appellations</option></select>
+      <select id="fAnnee" aria-label="Millésime"><option value="">Tous les millésimes</option></select>
     </div>
     <div class="row" id="chips"></div>
   </section>
@@ -968,12 +971,14 @@ function match(v) {
   const fr = $("fRegion").value, fa = $("fAppel").value;
   if (fr && regionStd(v) !== fr) return false;
   if (fa && appDe(v) !== fa) return false;
+  const fm = $("fAnnee").value;
+  if (fm && (fm === "nm" ? !!v.millesime : String(v.millesime || "") !== fm)) return false;
   const bud = $("budget").value;
   if (bud) { const px = prixDe(v); if (bud === "x") { if (px) return false; } else { const [a, b] = bud.split("-"); if (!px || px < +a || (b && px >= +b)) return false; } }
   if (q && ![v.nom, v.domaine, v.appellation, v.region, v.pays, v.cepages, v.commentaire, v.millesime].some(x => String(x ?? "").toLowerCase().includes(q))) return false;
   return true;
 }
-const filtreActif = () => !!($("q").value.trim() || filtreCouleur || $("vue").value !== "cave" || $("budget").value || $("fRegion").value || $("fAppel").value);
+const filtreActif = () => !!($("q").value.trim() || filtreCouleur || $("vue").value !== "cave" || $("budget").value || $("fRegion").value || $("fAppel").value || $("fAnnee").value);
 
 /* Grandes régions viticoles : un vin y est rattaché dès que sa région (ou, à défaut, son appellation) contient l'un des mots-clés. */
 const REGIONS = [
@@ -1015,6 +1020,14 @@ function majListesFiltres() {   // régions et appellations réellement présent
   maj("fRegion", "Toutes les régions", [...REGIONS.map(x => x[0]).filter(x => presentes.has(x)).sort(tri), ...(presentes.has(AUTRES) ? [AUTRES] : [])]);
   const r = $("fRegion").value;
   maj("fAppel", "Toutes les appellations", [...new Set(vins.filter(v => !r || regionStd(v) === r).map(appDe).filter(Boolean))].sort(tri));
+  {   // millésimes présents, du plus récent au plus ancien, puis les non millésimés
+    const sl = $("fAnnee");
+    if (document.activeElement !== sl) {
+      const ans = [...new Set(vins.map(v => v.millesime).filter(Boolean).map(String))].sort((a, b) => b - a), nm = vins.some(v => !v.millesime), cur = sl.value;
+      sl.replaceChildren(h("option", { value: "" }, "Tous les millésimes"), ...ans.map(x => h("option", { value: x }, x)), nm ? h("option", { value: "nm" }, "Non millésimé") : null);
+      sl.value = ans.includes(cur) || (cur === "nm" && nm) ? cur : "";
+    }
+  }
 }
 function render() {
   majListesFiltres();
@@ -2600,7 +2613,7 @@ $("tabPlan").addEventListener("click", () => { tab = "plan"; render(); });
 $("tabInv").addEventListener("click", () => { tab = "inv"; focusVin = null; render(); });
 $("tabSuivi").addEventListener("click", () => { tab = "suivi"; focusVin = null; render(); });
 $("filtBtn").addEventListener("click", () => { filtres = !filtres; try { localStorage.setItem("cave.filtres", filtres ? "1" : "0"); } catch (e) {} render(); if (filtres) $("q").focus(); });
-for (const id of ["q", "vue", "classer", "budget", "fRegion", "fAppel"]) $(id).addEventListener("input", () => { focusVin = null; if (id === "vue" && ["ranger", "fini"].includes($("vue").value)) tab = "inv"; render(); });
+for (const id of ["q", "vue", "classer", "budget", "fRegion", "fAppel", "fAnnee"]) $(id).addEventListener("input", () => { focusVin = null; if (id === "vue" && ["ranger", "fini"].includes($("vue").value)) tab = "inv"; render(); });
 
 /* ---------- démarrage ---------- */
 const DEMO = [
