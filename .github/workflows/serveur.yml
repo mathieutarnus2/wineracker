@@ -32,4 +32,10 @@ jobs:
         with:
           workload_identity_provider: projects/229981076704/locations/global/workloadIdentityPools/github/providers/github
           service_account: github-deploy@wineracker-2e52e.iam.gserviceaccount.com
-      - run: npx --yes firebase-tools@15 deploy --only functions,firestore:rules --project wineracker-2e52e --non-interactive
+      - name: Publier
+        run: |
+          set +e
+          npx --yes firebase-tools@15 deploy --only functions,firestore:rules --project wineracker-2e52e --non-interactive 2>&1 | tee sortie.txt
+          code=${PIPESTATUS[0]}
+          if [ "$code" != 0 ]; then grep -iE "error|denied|permission|missing|failed|requires" sortie.txt | tail -15 | while IFS= read -r l; do echo "::error::$l"; done; fi
+          exit $code
