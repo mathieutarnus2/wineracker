@@ -76,7 +76,7 @@ exports.creerPaiement = onCall({ region: REGION, invoker: "public", secrets: [CL
 async function portail(s, customer, site) {
   // une configuration de l'espace client, créée une fois : changer de formule, résilier, moyens de paiement, factures
   const ref = db().doc("systeme/stripe"), snap = await ref.get();
-  const prix = await Promise.all(Object.keys(PLANS).map(p => prixDe(s, p))), sig = prix.map(p => p.id).join(",");
+  const prix = await Promise.all(Object.keys(PLANS).map(p => prixDe(s, p))), sig = "v2:" + prix.map(p => p.id).join(",");   // « v2 » : baisse de formule à l'échéance
   let conf = snap.exists && snap.data().prixPortail === sig && snap.data().portail;   // refaite quand les tarifs changent
   if (!conf) {
     const c = await s.billingPortal.configurations.create({
@@ -86,7 +86,9 @@ async function portail(s, customer, site) {
         invoice_history: { enabled: true },
         payment_method_update: { enabled: true },
         subscription_cancel: { enabled: true, mode: "at_period_end" },
-        subscription_update: { enabled: true, default_allowed_updates: ["price"], proration_behavior: "create_prorations", products: prix.map(p => ({ product: typeof p.product === "string" ? p.product : p.product.id, prices: [p.id] })) },
+        // passer à une formule plus grande : immédiat, la différence est facturée tout de suite (pas d'avoir) ;
+        // passer à une formule plus petite : seulement à la date anniversaire, la formule payée reste active jusque-là
+        subscription_update: { enabled: true, default_allowed_updates: ["price"], proration_behavior: "always_invoice", schedule_at_period_end: { conditions: [{ type: "decreasing_item_amount" }, { type: "shortening_interval" }] }, products: prix.map(p => ({ product: typeof p.product === "string" ? p.product : p.product.id, prices: [p.id] })) },
       },
     });
     conf = c.id; await ref.set({ portail: conf, prixPortail: sig }, { merge: true });
