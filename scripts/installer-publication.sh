@@ -5,7 +5,7 @@ P=wineracker-2e52e; DEPOT=mathieutarnus2/wineracker; SA=github-deploy@$P.iam.gse
 NUM=$(gcloud projects describe $P --format='value(projectNumber)')
 gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project $P
 gcloud iam service-accounts describe $SA --project $P >/dev/null 2>&1 || gcloud iam service-accounts create github-deploy --display-name "Publication depuis GitHub" --project $P
-for R in roles/firebasehosting.admin roles/firebase.viewer roles/serviceusage.serviceUsageConsumer roles/cloudfunctions.admin roles/run.admin roles/artifactregistry.admin roles/cloudbuild.builds.editor roles/secretmanager.viewer roles/firebaseextensions.viewer roles/firebaserules.admin roles/datastore.indexAdmin roles/cloudscheduler.viewer; do
+for R in roles/firebasehosting.admin roles/firebase.viewer roles/serviceusage.serviceUsageConsumer roles/cloudfunctions.admin roles/run.admin roles/artifactregistry.admin roles/cloudbuild.builds.editor roles/secretmanager.viewer roles/firebaseextensions.viewer roles/firebaserules.admin roles/datastore.indexAdmin roles/cloudscheduler.viewer roles/iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding $P --member "serviceAccount:$SA" --role $R --condition=None -q >/dev/null
 done
 # le serveur se publie en agissant comme le compte de service des fonctions
