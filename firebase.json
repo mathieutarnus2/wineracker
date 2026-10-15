@@ -7,6 +7,15 @@
       ],
       "headers": [
         {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
           "source": "/admin.html",
           "headers": [
             {
@@ -29,7 +38,7 @@
           ]
         },
         {
-          "source": "/index.html",
+          "source": "**/*.html",
           "headers": [
             {
               "key": "Cache-Control",
@@ -85,6 +94,15 @@
       ],
       "headers": [
         {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
           "source": "**",
           "headers": [
             {
@@ -116,7 +134,7 @@
           ]
         },
         {
-          "source": "/index.html",
+          "source": "**/*.html",
           "headers": [
             {
               "key": "Cache-Control",
@@ -174,7 +192,16 @@
       "cleanUrls": true,
       "headers": [
         {
-          "source": "/index.html",
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "**/*.html",
           "headers": [
             {
               "key": "Cache-Control",
