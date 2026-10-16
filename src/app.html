@@ -279,6 +279,8 @@ h1 { font: 400 clamp(2.2rem, 7vw, 3.4rem)/1 var(--display); margin: 0; text-wrap
 .cat b { overflow-wrap: anywhere }
 .cat .px2 { flex: none; text-align: right; font: 400 1.35rem/1.1 var(--display); font-variant-numeric: tabular-nums }
 .cat .px2 small { display: block; font: 500 .76rem/1.3 var(--body); color: var(--muted) }
+.nomlien { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; display: block }
+.nomlien:hover { text-decoration: underline }
 .pill.bue { color: var(--accent) } .pill.offerte { color: var(--wait) } .pill.retiree { color: var(--muted) }
 .vin .side .link { text-align: right }
 .stars { color: var(--accent); letter-spacing: 1px }
@@ -1816,10 +1818,11 @@ function renderSuivi() {
       return h("li", { class: "vin", c: x.couleur },
         h("div", { class: "yr" }, d ? d.toLocaleDateString(LOCALE(), { day: "2-digit", month: "2-digit" }) : "—", h("small", null, d ? String(d.getFullYear()) : "")),
         h("div", null,
-          h("div", { class: "nom" }, titre(x)),
+          vins.some(v => v.id === x.vinId) ? h("button", { type: "button", class: "nom nomlien", onclick: () => voirFiche(x.vinId) }, titre(x)) : h("div", { class: "nom" }, titre(x)),
           h("div", { class: "meta" }, [x.domaine, x.appellation, x.region].filter(y => typeof y === "string" && y).join(" · ")),
           h("div", { class: "tags" }, h("span", { class: "pill " + t }, SORTIES[t]), num(x.note) ? h("span", { class: "stars", title: tx("{n} sur 5", { n: x.note }) }, "★".repeat(Math.min(5, x.note))) : null, num(x.valeur) ? h("span", null, eur.format(x.valeur)) : null),
           typeof x.commentaire === "string" && x.commentaire ? h("div", { class: "meta", style: "margin-top:6px" }, x.commentaire) : null,
+          vins.some(v => v.id === x.vinId) ? h("button", { class: "link", style: "margin-right:14px", onclick: () => voirFiche(x.vinId) }, "Voir la fiche") : null,
           canWrite && !(typeof x.commentaire === "string" && x.commentaire) ? h("button", { class: "link", onclick: () => { modifierSortie(x.id); $("o-com").focus(); } }, t === "bue" && !num(x.note) ? "Ajouter une note et un commentaire" : "Ajouter un commentaire") : null),
         canWrite ? h("div", { class: "side" },
           h("button", { class: "link", onclick: () => modifierSortie(x.id) }, t === "bue" && !num(x.note) ? "Noter" : "Modifier"),
